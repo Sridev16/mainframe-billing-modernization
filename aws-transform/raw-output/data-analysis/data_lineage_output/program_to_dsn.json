@@ -1,0 +1,38 @@
+[
+  {
+    "fileName": "BILLING.cbl",
+    "filePath": "BILLING.cbl",
+    "dataSourceName": "LEGACY.BILLING.CUSTOMER",
+    "ddName": "CUSTOMER",
+    "logicalName": "",
+    "copybookRecordName": "",
+    "copybookFilePath": "",
+    "dataSourceType": "Dataset",
+    "accessType": "",
+    "fileType": "COBOL"
+  },
+  {
+    "fileName": "BILLING.cbl",
+    "filePath": "BILLING.cbl",
+    "dataSourceName": "LEGACY.BILLING.INVOICE",
+    "ddName": "INVOICE",
+    "logicalName": "",
+    "copybookRecordName": "",
+    "copybookFilePath": "",
+    "dataSourceType": "Dataset",
+    "accessType": "",
+    "fileType": "COBOL"
+  },
+  {
+    "fileName": "BILLING.cbl",
+    "filePath": "BILLING.cbl",
+    "dataSourceName": "LEGACY.BILLING.USAGE",
+    "ddName": "USAGEIN",
+    "logicalName": "",
+    "copybookRecordName": "",
+    "copybookFilePath": "",
+    "dataSourceType": "Dataset",
+    "accessType": "",
+    "fileType": "COBOL"
+  }
+]

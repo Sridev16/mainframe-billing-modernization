@@ -1,0 +1,44 @@
+[
+  {
+    "jclFile": "BILL01.jcl",
+    "jclPath": "jcl/BILL01.jcl",
+    "stepName": "STEP01",
+    "stepSequence": 1,
+    "programName": "BILLING",
+    "dataSourceName": "LEGACY.BILLING.CUSTOMER",
+    "ddName": "CUSTOMER",
+    "disp": "SHR",
+    "systemProgram": "No",
+    "dataSourceType": "Dataset",
+    "dataSourceDependencyType": "Dataset use",
+    "accessType": ""
+  },
+  {
+    "jclFile": "BILL01.jcl",
+    "jclPath": "jcl/BILL01.jcl",
+    "stepName": "STEP01",
+    "stepSequence": 1,
+    "programName": "BILLING",
+    "dataSourceName": "LEGACY.BILLING.USAGE",
+    "ddName": "USAGEIN",
+    "disp": "SHR",
+    "systemProgram": "No",
+    "dataSourceType": "Dataset",
+    "dataSourceDependencyType": "Dataset use",
+    "accessType": ""
+  },
+  {
+    "jclFile": "BILL01.jcl",
+    "jclPath": "jcl/BILL01.jcl",
+    "stepName": "STEP01",
+    "stepSequence": 1,
+    "programName": "BILLING",
+    "dataSourceName": "LEGACY.BILLING.INVOICE",
+    "ddName": "INVOICE",
+    "disp": "OLD",
+    "systemProgram": "No",
+    "dataSourceType": "Dataset",
+    "dataSourceDependencyType": "Dataset use",
+    "accessType": ""
+  }
+]

@@ -1,0 +1,4 @@
+File Name,File Path,Data Source Name,DD Name,Logical Name,Copybook Record Name,Copybook File Path,Data Source Type,Access Type,File Type
+BILLING.cbl,BILLING.cbl,LEGACY.BILLING.CUSTOMER,CUSTOMER,,,,Dataset,,COBOL
+BILLING.cbl,BILLING.cbl,LEGACY.BILLING.INVOICE,INVOICE,,,,Dataset,,COBOL
+BILLING.cbl,BILLING.cbl,LEGACY.BILLING.USAGE,USAGEIN,,,,Dataset,,COBOL

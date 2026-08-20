@@ -1,0 +1,94 @@
+{
+    "created_on": "2026-08-18",
+    "document_title": "BILL01.jcl Batch Documentation",
+    "type": "entry_point",
+    "document_name": "BILL01.jcl",
+    "summary": {
+        "overview": "The BILL01 batch job executes the monthly billing cycle for customers by reading customer account and usage data to calculate charges and generate invoices. It applies tiered rates, volume and premium discounts, tax calculations, and previous balances to produce a complete invoice for each active customer.",
+        "business_functions": [
+            "Read Usage Records - Read each customer usage record from the usage file, capturing customer ID, units consumed, and billing month",
+            "Find Customer - Locate the matching customer record from the customer master file for each usage record",
+            "Validate Customer Status - Verify the customer is active; skip and log an error for inactive or not-found customers",
+            "Determine Usage Rate - Assign a per-unit billing rate based on tiered usage levels (up to 500 units: $0.50, 501\u20131000 units: $0.45, over 1000 units: $0.40)",
+            "Calculate Usage Charge - Multiply total units consumed by the applicable per-unit rate to compute the gross usage charge",
+            "Apply Volume Discount - Apply a 10% discount on the usage charge for customers exceeding 1000 units",
+            "Apply Premium Customer Discount - Apply an additional 5% discount for customers classified as PREMIUM, on top of any volume discount",
+            "Apply Minimum Charge Rule - Ensure the charge after discounts is at least $25.00; apply the minimum if the discounted amount falls below this threshold",
+            "Calculate Tax - Compute the tax amount by applying the customer's individual tax rate to the taxable amount",
+            "Calculate Final Invoice Amount - Sum the taxable amount, tax, and any previous outstanding balance to determine the total amount due",
+            "Generate Invoice Number - Create a unique invoice number by combining the billing month and customer ID",
+            "Format and Write Invoice Record - Format all monetary values and write the complete invoice record (invoice number, customer details, units, charges, discounts, tax, previous balance, and total due) to the invoice output file",
+            "Billing Process Completion - Close all files and confirm completion of the billing process after all usage records are processed"
+        ],
+        "environment_summary": {
+            "workload_type": "Batch",
+            "database_types": [
+                "N/A"
+            ],
+            "integration_components": [
+                "N/A"
+            ],
+            "dataset_types": [
+                "PS"
+            ]
+        }
+    },
+    "functionality_flow": {
+        "BILL01.jcl": [
+            {
+                "program_name": "BILLING",
+                "program_overview": "Reads customer and usage data, applies tiered rates, discounts, and taxes, and generates monthly invoices for active customers",
+                "called_programs": []
+            }
+        ]
+    },
+    "datasource_summary": [
+        {
+            "name": "Customer Account Information File (LEGACY.BILLING.CUSTOMER)",
+            "original_name": "LEGACY.BILLING.CUSTOMER",
+            "business_name": "Customer Account Information File",
+            "type": "Sequential File",
+            "function": "Contains customer account details including customer type, status, tax rate, and previous balance used to drive billing processing and invoice generation",
+            "used_by_programs": [
+                "BILL01.jcl",
+                "BILLING.cbl"
+            ],
+            "accessType": [
+                "READ"
+            ]
+        },
+        {
+            "name": "Customer Usage and Consumption Data File (LEGACY.BILLING.USAGE)",
+            "original_name": "LEGACY.BILLING.USAGE",
+            "business_name": "Customer Usage and Consumption Data File",
+            "type": "Sequential File",
+            "function": "Contains customer usage units and billing month information for the billing period, used to calculate consumption-based charges on invoices",
+            "used_by_programs": [
+                "BILL01.jcl",
+                "BILLING.cbl"
+            ],
+            "accessType": [
+                "READ"
+            ]
+        },
+        {
+            "name": "Customer Invoice Output File (LEGACY.BILLING.INVOICE)",
+            "original_name": "LEGACY.BILLING.INVOICE",
+            "business_name": "Customer Invoice Output File",
+            "type": "Sequential File",
+            "function": "Stores the generated invoice records for each customer, including invoice number, customer details, usage charges, applied discounts, taxes, and final billed amounts",
+            "used_by_programs": [
+                "BILL01.jcl",
+                "BILLING.cbl"
+            ],
+            "accessType": [
+                "WRITE"
+            ]
+        }
+    ],
+    "program_paths": {
+        "BILL01.jcl": "jcl/BILL01.jcl",
+        "BILLING": "BILLING.cbl"
+    },
+    "flow_diagram_code": "flowchart TD\n    BILLING[\"Reads customer and usage data, applies tiered rates, discounts, and taxes, and generates monthly invoices for active customers (BILLING) \"]\n"
+}

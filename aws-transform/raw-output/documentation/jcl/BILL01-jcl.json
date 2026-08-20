@@ -1,0 +1,70 @@
+{
+  "documentation": {
+    "high_level_overview": {
+      "program_information": {
+        "name": "BILL01.jcl",
+        "type": "jcl"
+      },
+      "overview": "This JCL job, named BILL01, is a monthly billing processing job that executes the BILLING program to generate customer invoices. It reads from two input sources — a customer master file and a usage data file — to calculate and produce billing statements. The job writes the resulting invoice data to an existing invoice dataset, suggesting it updates or populates billing records as part of a recurring monthly billing cycle.",
+      "parameters": [
+        {
+          "name": "JOB",
+          "value": "BILL01",
+          "description": "Identifies the start of a job and assigns the job name BILL01, which is used by the system to identify and track the job throughout its execution."
+        },
+        {
+          "name": "accounting",
+          "value": "(BILLING)",
+          "description": "The accounting information parameter that associates the job with the BILLING account for resource tracking, billing, and reporting purposes."
+        },
+        {
+          "name": "programmer-name",
+          "value": "MONTHLY BILLING",
+          "description": "A descriptive label identifying the job as the Monthly Billing job. This appears on job output listings and helps operators identify the job's purpose."
+        },
+        {
+          "name": "CLASS",
+          "value": "A",
+          "description": "Assigns the job to input job class A, which determines the job's scheduling priority and the initiator that will process it, affecting when and how the job is selected for execution."
+        },
+        {
+          "name": "MSGCLASS",
+          "value": "X",
+          "description": "Specifies output class X for the job's system messages (JES job log), controlling where the job's system output and messages are routed after job completion."
+        }
+      ]
+    },
+    "job_details": [
+      {
+        "step": "STEP01",
+        "purpose": "Executes the customer application program BILLING to perform monthly billing processing. The program reads customer and usage data to generate invoice output.",
+        "programs": "BILLING",
+        "inputs": "LEGACY.BILLING.CUSTOMER (CUSTOMER DD), LEGACY.BILLING.USAGE (USAGEIN DD)",
+        "outputs": "LEGACY.BILLING.INVOICE (INVOICE DD)"
+      }
+    ],
+    "data_operations": [
+      {
+        "step": "STEP01",
+        "type": "Dataset",
+        "objects": "LEGACY.BILLING.CUSTOMER",
+        "operations": "READ",
+        "description": "Customer master data read by the BILLING program with shared disposition (DISP=SHR)"
+      },
+      {
+        "step": "STEP01",
+        "type": "Dataset",
+        "objects": "LEGACY.BILLING.USAGE",
+        "operations": "READ",
+        "description": "Usage input data read by the BILLING program with shared disposition (DISP=SHR)"
+      },
+      {
+        "step": "STEP01",
+        "type": "Dataset",
+        "objects": "LEGACY.BILLING.INVOICE",
+        "operations": "WRITE",
+        "description": "Invoice output dataset written by the BILLING program with exclusive disposition (DISP=OLD)"
+      }
+    ]
+  }
+}

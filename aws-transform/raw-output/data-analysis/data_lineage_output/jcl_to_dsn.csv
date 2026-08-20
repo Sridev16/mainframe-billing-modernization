@@ -1,0 +1,4 @@
+JCL File,JCL Path,Step Name,Step Sequence,Program Name,Data Source Name,DD Name,DISP,System Program,Data Source Type,Data Source Dependency Type,Access Type
+BILL01.jcl,jcl/BILL01.jcl,STEP01,1,BILLING,LEGACY.BILLING.CUSTOMER,CUSTOMER,SHR,No,Dataset,Dataset use,
+BILL01.jcl,jcl/BILL01.jcl,STEP01,1,BILLING,LEGACY.BILLING.USAGE,USAGEIN,SHR,No,Dataset,Dataset use,
+BILL01.jcl,jcl/BILL01.jcl,STEP01,1,BILLING,LEGACY.BILLING.INVOICE,INVOICE,OLD,No,Dataset,Dataset use,

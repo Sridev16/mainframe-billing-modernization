@@ -1,0 +1,12 @@
+{
+  "created_on": "2026-08-18",
+  "document_name": "Application Level Business Specifications",
+  "type": "application",
+  "executive_summary": "This mainframe application serves as the organization's core billing and revenue management platform, responsible for executing the end-to-end customer invoicing lifecycle. The application delivers a single, critical business capability: the accurate and timely generation of customer invoices through a comprehensive monthly billing cycle. It consolidates customer account data, service usage information, applicable rate structures, and discount programs to produce complete and precise invoices for all active customers. The platform applies tiered pricing models, calculates volume and premium discounts, incorporates tax obligations, and carries forward outstanding balances, ensuring that every billing statement reflects a complete and accurate picture of each customer's financial obligations. By automating this process at scale, the application directly supports the organization's cash flow integrity, revenue recognition accuracy, and customer satisfaction. Its strategic value lies in providing a reliable, consistent billing engine that underpins the organization's financial operations and serves as the authoritative source for customer charge generation each billing period.",
+  "identified_business_functions": [
+    {
+      "name": "Billing and Invoice Processing",
+      "description": "Manages the end-to-end monthly billing cycle, calculating customer charges and generating invoices based on usage, rates, discounts, and taxes."
+    }
+  ]
+}

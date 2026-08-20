@@ -1,0 +1,23 @@
+data_source_name,field_name,field_type,mainframe_data_type,generic_data_type,level,data_length,business_definition,logical_group,display_format,display_length,decimal_positions,signed_indicator,usage_clause,occurs_min,occurs_max,occurs_depending,redefines_field,root_record,field_position,synchronized,justified,blank_when_zero,value_clause,condition_values,condition_ranges,is_inline,occurrence_index
+BILLING,CUSTOMER-RECORD,RECORD,N/A,GROUP,1,71,Top-level record structure containing customer information,CUSTOMER-RECORD,N/A,0,0,NO,DISPLAY,,,,,CUSTOMER-RECORD,1,NO,,NO,,,,YES,1
+BILLING,CUST-ID,FIELD,X(10),ALPHANUMERIC,5,10,Customer identifier code (PIC X(10)),CUSTOMER-RECORD,X(10),10,0,NO,DISPLAY,,,,,CUSTOMER-RECORD,1,NO,,NO,,,,YES,1
+BILLING,CUST-NAME,FIELD,X(30),ALPHANUMERIC,5,30,Customer name or business entity name (PIC X(30)),CUSTOMER-RECORD,X(30),30,0,NO,DISPLAY,,,,,CUSTOMER-RECORD,11,NO,,NO,,,,YES,1
+BILLING,CUST-TYPE,FIELD,X(10),ALPHANUMERIC,5,10,Customer classification type (PIC X(10)),CUSTOMER-RECORD,X(10),10,0,NO,DISPLAY,,,,,CUSTOMER-RECORD,41,NO,,NO,,,,YES,1
+BILLING,CUST-STATUS,FIELD,X(8),ALPHANUMERIC,5,8,Customer account status code (PIC X(8)),CUSTOMER-RECORD,X(8),8,0,NO,DISPLAY,,,,,CUSTOMER-RECORD,51,NO,,NO,,,,YES,1
+BILLING,CUST-TAX-RATE,FIELD,9V999,DECIMAL,5,4,Customer tax rate as decimal fraction (PIC 9V999),CUSTOMER-RECORD,9.999,5,3,NO,DISPLAY,,,,,CUSTOMER-RECORD,59,NO,,NO,,,,YES,1
+BILLING,CUST-PREV-BALANCE,FIELD,9(7)V99,DECIMAL,5,9,Customer previous account balance in dollars and cents (PIC 9(7)V99),CUSTOMER-RECORD,9999999.99,10,2,NO,DISPLAY,,,,,CUSTOMER-RECORD,63,NO,,NO,,,,YES,1
+BILLING,USAGE-RECORD,RECORD,N/A,GROUP,1,23,Top-level record structure containing usage information,USAGE-RECORD,N/A,0,0,NO,DISPLAY,,,,,USAGE-RECORD,1,NO,,NO,,,,YES,1
+BILLING,USAGE-CUST-ID,FIELD,X(10),ALPHANUMERIC,5,10,Customer identifier for usage record (PIC X(10)),USAGE-RECORD,X(10),10,0,NO,DISPLAY,,,,,USAGE-RECORD,1,NO,,NO,,,,YES,1
+BILLING,USAGE-UNITS,FIELD,9(7),NUMERIC,5,7,Quantity of units consumed during billing period (PIC 9(7)),USAGE-RECORD,9999999,7,0,NO,DISPLAY,,,,,USAGE-RECORD,11,NO,,NO,,,,YES,1
+BILLING,USAGE-MONTH,FIELD,X(6),ALPHANUMERIC,5,6,Billing month in YYYYMM format (PIC X(6)),USAGE-RECORD,X(6),6,0,NO,DISPLAY,,,,,USAGE-RECORD,18,NO,,NO,,,,YES,1
+BILLING,INVOICE-RECORD,FIELD,X(180),ALPHANUMERIC,1,180,Complete invoice record output buffer (PIC X(180)),INVOICE-RECORD,X(180),180,0,NO,DISPLAY,,,,,INVOICE-RECORD,1,NO,,NO,,,,YES,1
+BILLING,WS-CURRENT-CUSTOMER-ID,FIELD,X(10),ALPHANUMERIC,1,10,Working storage variable for current customer identifier being processed (PIC X(10)),WS-CURRENT-CUSTOMER-ID,X(10),10,0,NO,DISPLAY,,,,,WS-CURRENT-CUSTOMER-ID,1,NO,,NO,,,,YES,1
+BILLING,WS-BILLING-MONTH,FIELD,X(6),ALPHANUMERIC,1,6,Working storage variable for current billing month in YYYYMM format (PIC X(6)),WS-BILLING-MONTH,X(6),6,0,NO,DISPLAY,,,,,WS-BILLING-MONTH,1,NO,,NO,,,,YES,1
+BILLING,WS-USAGE-UNITS,FIELD,9(7),NUMERIC,1,7,Working storage variable for usage units quantity (PIC 9(7)) (VALUE ZERO),WS-USAGE-UNITS,9999999,7,0,NO,DISPLAY,,,,,WS-USAGE-UNITS,1,NO,,NO,ZERO,,,YES,1
+BILLING,WS-RATE,FIELD,9V99,DECIMAL,1,3,Working storage variable for billing rate per unit (PIC 9V99) (VALUE ZERO),WS-RATE,9.99,4,2,NO,DISPLAY,,,,,WS-RATE,1,NO,,NO,ZERO,,,YES,1
+BILLING,WS-USAGE-CHARGE,FIELD,9(9)V99,DECIMAL,1,11,Working storage variable for calculated usage charge amount (PIC 9(9)V99) (VALUE ZERO),WS-USAGE-CHARGE,999999999.99,12,2,NO,DISPLAY,,,,,WS-USAGE-CHARGE,1,NO,,NO,ZERO,,,YES,1
+BILLING,WS-DISCOUNT,FIELD,9(9)V99,DECIMAL,1,11,Working storage variable for discount amount applied (PIC 9(9)V99) (VALUE ZERO),WS-DISCOUNT,999999999.99,12,2,NO,DISPLAY,,,,,WS-DISCOUNT,1,NO,,NO,ZERO,,,YES,1
+BILLING,WS-TAXABLE-AMOUNT,FIELD,9(9)V99,DECIMAL,1,11,Working storage variable for amount subject to taxation (PIC 9(9)V99) (VALUE ZERO),WS-TAXABLE-AMOUNT,999999999.99,12,2,NO,DISPLAY,,,,,WS-TAXABLE-AMOUNT,1,NO,,NO,ZERO,,,YES,1
+BILLING,WS-TAX,FIELD,9(9)V99,DECIMAL,1,11,Working storage variable for calculated tax amount (PIC 9(9)V99) (VALUE ZERO),WS-TAX,999999999.99,12,2,NO,DISPLAY,,,,,WS-TAX,1,NO,,NO,ZERO,,,YES,1
+BILLING,WS-FINAL-AMOUNT,FIELD,9(9)V99,DECIMAL,1,11,Working storage variable for final invoice total amount (PIC 9(9)V99) (VALUE ZERO),WS-FINAL-AMOUNT,999999999.99,12,2,NO,DISPLAY,,,,,WS-FINAL-AMOUNT,1,NO,,NO,ZERO,,,YES,1
+BILLING,WS-MINIMUM-CHARGE,FIELD,9(5)V99,DECIMAL,1,7,Working storage variable for minimum billing charge threshold (PIC 9(5)V99) (VALUE 25),WS-MINIMUM-CHARGE,99999.99,8,2,NO,DISPLAY,,,,,WS-MINIMUM-CHARGE,1,NO,,NO,25,,,YES,1

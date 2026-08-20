@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Logic Extraction Results</title>
+
+    <!-- Cloudscape Design System -->
+    <link rel="stylesheet" href="https://unpkg.com/@cloudscape-design/global-styles/index.css">
+    <link rel="stylesheet" href="https://unpkg.com/@cloudscape-design/components/styles.css">
+
+    <style>
+        /* Cloudscape-inspired custom styles */
+        :root {
+            /* Used color tokens only */
+            --color-background-layout-main: #fafafa;
+            --color-background-container-content: #ffffff;
+            --color-background-container-header: #ffffff;
+            --color-border-divider-default: #d5dbdb;
+            --color-border-item-default: #d5dbdb;
+            --color-text-body-default: #16191f;
+            --color-text-heading-default: #16191f;
+            --color-text-label: #414d5c;
+            --color-background-status-info: #f2f3f3;
+            --color-background-input-default: #ffffff;
+            --color-border-input-default: #879596;
+            --color-text-interactive-default: #414d5c;
+            --color-background-button-primary-default: #414d5c;
+            --color-background-button-normal-hover: #fafbfc;
+            --color-tab-active: #0972d3;
+
+            /* Primary Button Colors - AWS Blue */
+            --color-background-button-primary-default: #0972d3;
+            --color-background-button-primary-hover: #0962c7;
+            --color-background-button-primary-active: #0859b8;
+            --color-background-button-primary-disabled: #d1d5db;
+
+            --color-border-button-primary-default: #0972d3;
+            --color-border-button-primary-hover: #0962c7;
+            --color-border-button-primary-active: #0859b8;
+            --color-border-button-primary-disabled: #d1d5db;
+
+            --color-text-button-primary-default: #ffffff;
+            --color-text-button-primary-hover: #ffffff;
+            --color-text-button-primary-active: #ffffff;
+            --color-text-button-primary-disabled: #9ca3af;
+
+            /* Responsive header padding */
+            @media (max-width: 768px) {
+                .awsui-header>div {
+                    padding: 0 60px !important;
+                }
+            }
+
+            @media (max-width: 900px) {
+                .awsui-header>div {
+                    padding: 0 80px !important;
+                }
+            }
+
+            @media (max-width: 900px) {
+                .aws-transform-text {
+                    display: none;
+                }
+            }
+
+            /* Hide AWS logo on very small screens to prevent overlap */
+            @media (max-width: 600px) {
+                .aws-logo-container {
+                    display: none;
+                }
+            }
+
+            /* Spacing tokens */
+            --space-xxxs: 2px;
+            --space-xxs: 4px;
+            --space-xs: 8px;
+            --space-s: 12px;
+            --space-m: 16px;
+            --space-l: 20px;
+            --space-xl: 24px;
+            --space-xxl: 32px;
+            --space-xxxl: 40px;
+
+            /* Typography */
+            --font-family-base: 'Amazon Ember',
+            -apple-system,
+            BlinkMacSystemFont,
+            'Segoe UI',
+            Roboto,
+            Arial,
+            sans-serif;
+            --font-size-body-s: 12px;
+            --font-size-body-m: 14px;
+            --font-size-heading-xs: 16px;
+            --font-size-heading-s: 18px;
+            --font-size-heading-m: 20px;
+            --font-size-heading-l: 24px;
+            --font-size-heading-xl: 32px;
+
+            /* Layout */
+            --sidebar-width: 280px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family-base);
+            font-size: var(--font-size-body-m);
+            line-height: 1.5;
+            color: var(--color-text-body-default);
+            background-color: var(--color-background-layout-main);
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Layout Structure */
+        .awsui-app-layout {
+            display: flex;
+            min-height: 100vh;
+            background-color: var(--color-background-layout-main);
+        }
+
+        .awsui-button {
+            background: none;
+            border: 1px solid var(--color-border-item-default);
+            border-radius: 8px;
+            padding: var(--space-xs);
+            cursor: pointer;
+            color: var(--color-text-interactive-default);
+            font-size: var(--font-size-body-m);
+            transition: all 0.15s ease;
+            min-width: 32px;
+            min-height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .awsui-button:hover {
+            background-color: var(--color-background-status-info);
+            border-color: var(--color-text-interactive-default);
+        }
+
+        /* Main Content Area */
+        .awsui-app-layout__content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            transition: margin-left 0.3s ease;
+            background-color: var(--color-background-layout-main);
+        }
+
+        .awsui-app-layout__content.expanded {
+            margin-left: 0;
+            /* Full width when navigation is collapsed */
+        }
+
+        /* Header - Full width sticky header */
+        .awsui-header {
+            background-color: var(--color-background-container-header);
+            border-bottom: 1px solid var(--color-border-divider-default);
+            padding: var(--space-s) var(--space-xxl);
+            margin-bottom: var(--space-xl);
+            /* Restored spacing between header and content */
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            width: 100%;
+            margin-left: 0;
+            margin-right: 0;
+        }
+
+        /* Global scroll behavior to account for sticky header */
+        html {
+            scroll-padding-top: calc(var(--space-s) * 2 + var(--font-size-heading-xl) * 1.5 + 1px + var(--space-xl));
+            /* Header height + margin-bottom */
+        }
+
+        /* Alternative: target specific sections */
+        .awsui-container-header {
+            scroll-margin-top: calc(var(--space-s) * 2 + var(--font-size-heading-xl) * 1.5 + 1px + var(--space-xl));
+        }
+
+        /* Override any mobile CSS that might make navigation vertical */
+        .awsui-app-layout__navigation .awsui-side-navigation__link {
+            writing-mode: horizontal-tb !important;
+            text-orientation: initial !important;
+            text-align: left !important;
+            display: block !important;
+            padding: var(--space-xs) var(--space-m) !important;
+            font-size: var(--font-size-body-m) !important;
+            min-height: auto !important;
+            margin: 0 !important;
+            justify-content: flex-start !important;
+            align-items: flex-start !important;
+        }
+
+        /* App layout adjusted for external header */
+        .awsui-app-layout {
+            margin-top: 0;
+        }
+
+        .awsui-header__title {
+            font-size: var(--font-size-heading-xl);
+            font-weight: 700;
+            color: var(--color-text-heading-default);
+            margin: 0;
+            text-align: center;
+        }
+
+        /* Container */
+        .awsui-container {
+            max-width: none;
+            padding: 0 var(--space-xxl) var(--space-xxl);
+        }
+
+        /* Cards/Containers */
+        .awsui-container-content {
+            background-color: var(--color-background-container-content);
+            border: 1px solid var(--color-border-item-default);
+            border-radius: 12px;
+            margin-bottom: var(--space-xl);
+            overflow: hidden;
+        }
+
+        .awsui-container-header {
+            background-color: var(--color-background-container-header);
+            border-bottom: 1px solid var(--color-border-divider-default);
+            padding: var(--space-l) var(--space-xl);
+        }
+
+        .awsui-container-header__title {
+            font-size: var(--font-size-heading-m);
+            font-weight: 600;
+            color: var(--color-text-heading-default);
+            margin: 0;
+        }
+
+        .awsui-container-body {
+            padding: var(--space-xl);
+        }
+
+        /* Typography */
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            color: var(--color-text-heading-default);
+            margin: 0 0 var(--space-m) 0;
+            font-weight: 600;
+        }
+
+        h1 {
+            font-size: var(--font-size-heading-xl);
+        }
+
+        h2 {
+            font-size: var(--font-size-heading-l);
+        }
+
+        h3 {
+            font-size: var(--font-size-heading-m);
+        }
+
+        h4 {
+            font-size: var(--font-size-heading-s);
+        }
+
+        /* Reduce container header spacing */
+        .awsui-container-header__description {
+            margin-top: var(--space-xxs);
+            margin-bottom: 0;
+            color: var(--color-text-label);
+        }
+
+        @media (max-width: 900px) {
+            .aws-transform-text {
+                display: none;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .aws-logo-container {
+                display: none;
+            }
+        }
+
+        .container {
+            max-width: none;
+            margin: 0 auto;
+            padding: 0 var(--space-xxl) var(--space-xxl);
+        }
+
+        /* Cards/Containers */
+        .awsui-container-content {
+            background-color: var(--color-background-container-content);
+            border: 1px solid var(--color-border-item-default);
+            border-radius: 12px;
+            margin-bottom: var(--space-xl);
+            overflow: hidden;
+        }
+
+        .container-header {
+            background-color: var(--color-background-container-header);
+            border-bottom: 1px solid var(--color-border-divider-default);
+            padding: var(--space-l) var(--space-xl);
+        }
+
+        .container-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--color-text-heading-default);
+            margin: 0 0 4px 0;
+        }
+
+        .container-header p {
+            color: var(--color-text-label);
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .container-body {
+            padding: var(--space-xl);
+        }
+
+        /* Simple expandable table styles - Cloudscape format */
+        .expandable-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: var(--color-background-container-content);
+            border: 1px solid var(--color-border-item-default);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .expandable-table th,
+        .expandable-table td {
+            padding: var(--space-m) var(--space-l);
+            text-align: left;
+            vertical-align: middle;
+            border-bottom: 1px solid var(--color-border-divider-default);
+        }
+
+        .expandable-table th {
+            background-color: var(--color-background-container-header);
+            font-weight: 600;
+            color: var(--color-text-label);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+            transition: background-color 0.15s ease;
+            padding-right: 36px;
+        }
+
+        .expandable-table th:hover {
+            background-color: #f2f3f3;
+        }
+
+        /* Sort indicators */
+        .expandable-table th::after {
+            content: '';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            opacity: 0.5;
+            background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true"><path d="m8 5 4 6H4l4-6Z" fill="%23414d5c" class="filled stroke-linejoin-round"/><path d="m8 11 4-6H4l4 6Z" fill="%23414d5c" class="filled stroke-linejoin-round"/></svg>');
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+        }
+
+        .expandable-table th.asc::after {
+            opacity: 1;
+            background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true"><path d="m8 5 4 6H4l4-6Z" fill="%230972d3" class="filled stroke-linejoin-round"/></svg>');
+        }
+
+        .expandable-table th.desc::after {
+            opacity: 1;
+            background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true"><path d="m8 11 4-6H4l4 6Z" fill="%230972d3" class="filled stroke-linejoin-round"/></svg>');
+        }
+
+        .expandable-table tr:hover {
+            background-color: #f2f3f3;
+        }
+
+        .expandable-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Links styling */
+        .expandable-table a {
+            color: var(--color-tab-active);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        .expandable-table a:hover {
+            color: #0962c7;
+            text-decoration: underline;
+        }
+
+        .expand-toggle {
+            cursor: pointer;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            margin-right: var(--space-xs);
+            width: 20px;
+            height: 20px;
+            transition: all 0.2s ease;
+            vertical-align: middle;
+        }
+
+        .expand-toggle svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--color-text-label);
+            transition: transform 0.2s ease;
+        }
+
+        .expand-toggle.expanded svg {
+            transform: rotate(90deg);
+        }
+
+        .child-row {
+            display: none;
+        }
+
+        .child-row.visible {
+            display: table-row;
+        }
+
+        .level-1 {
+            padding-left: 40px !important;
+        }
+
+        .level-2 {
+            padding-left: 80px !important;
+        }
+
+        .level-3 {
+            padding-left: 120px !important;
+        }
+
+        /* Cloudscape Search Input Styling */
+        .awsui-tools-filtering {
+            margin-bottom: var(--space-m);
+        }
+
+        .awsui-input-root {
+            position: relative;
+            width: 100%;
+        }
+
+        .awsui-input-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .awsui-input-icon-left {
+            position: absolute;
+            left: var(--space-s);
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .awsui-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+        }
+
+        .awsui-icon svg {
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: var(--color-text-label);
+            stroke-width: 2;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: var(--space-s) var(--space-s) var(--space-s) 36px;
+            border: 1px solid #879596;
+            border-radius: 8px;
+            font-size: var(--font-size-body-m);
+            font-family: var(--font-family-base);
+            background-color: var(--color-background-container-content);
+            color: var(--color-text-body-default);
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+
+        .search-box:focus {
+            border-color: var(--color-tab-active);
+            box-shadow: 0 0 0 2px rgba(9, 114, 211, 0.2);
+        }
+
+        /* Status indicators */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xxs);
+            font-size: var(--font-size-body-m);
+            font-weight: 600;
+        }
+
+        .status-indicator svg {
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+        .status-success {
+            color: #037f0c;
+        }
+
+        .status-warning {
+            color: #f89406;
+        }
+
+        .status-error {
+            color: #d13212;
+        }
+
+        .search-box::placeholder {
+            color: #8a8a8a;
+            font-style: italic;
+        }
+    </style>
+</head><body>
+    <header class="awsui-header">
+        <div
+            style="display: flex; align-items: center; justify-content: center; position: relative; width: 100%; padding: 0 120px;">
+            <!-- Centered title -->
+            <h1 class="awsui-header__title"
+                style="text-align: center; margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                Business Logic Extraction Results</h1>
+            <!-- AWS Logo on the right -->
+            <div class="aws-logo-container"
+                style="position: absolute; right: 0px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: var(--space-xs);">
+                <svg width="32" height="32" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"
+                    aria-label="AWS Logo">
+                    <path
+                        d="M15 1.98096V4.48096C15 4.75733 14.7764 4.98096 14.5 4.98096H12V3.98096H13.5463L9.31055 1.37451C8.50196 0.876463 7.49707 0.876463 6.69043 1.37451L2.71387 3.8208C2.2666 4.09619 2 4.57373 2 5.09863V8.28027L5 6.21777V4.98095C5 4.81396 5.08398 4.65771 5.22266 4.56493L6.72266 3.56493C6.87207 3.46434 7.06348 3.4536 7.22364 3.53368L8.00001 3.92186L8.77638 3.53368C8.93458 3.4536 9.12697 3.46434 9.27736 3.56493L10.7774 4.56493C10.916 4.6577 11 4.81395 11 4.98095V5.67187L11.7236 6.03369C11.8926 6.11865 12 6.2915 12 6.48096V6.63092L11 7.33093V6.79004L10.2764 6.42822C10.1074 6.34326 10 6.17041 10 5.98095V5.24853L8.96389 4.5581L8.22366 4.92822C8.08304 4.99853 7.91702 4.99853 7.77639 4.92822L7.03616 4.5581L6.00003 5.24853V6.48095C6.00003 6.6455 5.91898 6.7998 5.78323 6.89306L1.7832 9.64307C1.69824 9.70118 1.59961 9.73096 1.5 9.73096C1.41992 9.73096 1.34082 9.71192 1.26758 9.67334C1.10254 9.58691 1 9.4165 1 9.23096V5.09864C1 4.22413 1.44531 3.42774 2.19043 2.96925L6.16602 0.522952C7.29688 -0.174317 8.70215 -0.174317 9.83497 0.522952L14 3.08637V1.98096H15ZM14.7324 6.28857C14.5693 6.20312 14.3711 6.21435 14.2168 6.31884L10.2168 9.06884C10.0811 9.1621 10 9.3164 10 9.48095V10.7134L8.96387 11.4038L8.22364 11.0337C8.08302 10.9634 7.917 10.9634 7.77637 11.0337L7.03614 11.4038L6.00001 10.7134V9.98095C6.00001 9.7915 5.89259 9.61865 5.72364 9.53368L5.00001 9.17186V8.63091L4.00001 9.33092V9.48094C4.00001 9.67039 4.10743 9.84324 4.27638 9.92821L5.00001 10.29V10.981C5.00001 11.1479 5.08399 11.3042 5.22267 11.397L6.72267 12.397C6.87208 12.4966 7.06349 12.5073 7.22365 12.4282L8.00002 12.04L8.77639 12.4282C8.93459 12.5073 9.12698 12.4966 9.27737 12.397L10.7774 11.397C10.916 11.3042 11 11.148 11 10.981V9.74413L14 7.68163V10.8633C14 11.3882 13.7334 11.8657 13.2862 12.1411L9.3096 14.5874C8.50296 15.0854 7.49808 15.0854 6.68948 14.5874L2.4537 11.9809H4.00003V10.9809H1.5C1.22363 10.9809 1 11.2046 1 11.4809V13.9809H2V12.8755L6.16504 15.439C6.73145 15.7876 7.36524 15.9619 8 15.9619C8.63476 15.9619 9.26855 15.7876 9.83398 15.439L13.8096 12.9927C14.5547 12.5342 15 11.7378 15 10.8633V6.73095C15 6.5454 14.8975 6.37499 14.7324 6.28857Z"
+                        fill="black" />
+                </svg>
+                <span class="aws-transform-text"
+                    style="font-weight: 600; color: var(--color-text-heading-default); font-size: var(--font-size-heading-xs);">AWS
+                    Transform</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="awsui-container-content">
+            <div class="container-header">
+                <h2>Extracted Business Logic</h2>
+                <p>Browse business specifications for mainframe.</p>
+            </div>
+            <div class="container-body">
+                <!-- Cloudscape Search Bar -->
+                <div class="awsui-tools-filtering">
+                    <div class="awsui-input-root">
+                        <div class="awsui-input-container">
+                            <span class="awsui-input-icon-left">
+                                <span class="awsui-icon">
+                                    <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" focusable="false"
+                                        aria-hidden="true">
+                                        <path d="m11 11 4 4M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10Z"
+                                            class="stroke-linejoin-round"></path>
+                                    </svg>
+                                </span>
+                            </span>
+                            <input class="search-box" aria-label="Find Items" placeholder="Find Items"
+                                autocomplete="off" type="search" onkeyup="filterTable(this.value)" value="">
+                        </div>
+                    </div>
+                </div>
+
+                <table class="expandable-table" id="business-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">Name</th>
+                            <th onclick="sortTable(1)">Status</th>
+                            <th onclick="sortTable(2)">Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <tr class="" data-parent="" data-level="0" id="row-application-level-business-specifications"><td class="level-0"><span class="expand-toggle" onclick="toggleRow('application-level-business-specifications')">
+                <svg viewBox="0 0 16 16"><path d="m6 4 6 4-6 4V4Z"/></svg>
+            </span><a href="ApplicationLevelAnalysis/application.html" style="color: #0972d3; text-decoration: none;">Application Level Business Specifications</a></td><td><span class="status-indicator status-success">
+            <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true">
+                <circle cx="8" cy="8" r="7"></circle>
+                <path d="M4.5 7.5 7 10l4-5" class="stroke-linejoin-round"></path>
+            </svg>
+            Done
+        </span></td><td>Business overview</td></tr><tr class="child-row" data-parent="application-level-business-specifications-" data-level="1" id="row-application-level-business-specifications-billing-and-invoice-processing"><td class="level-1"><span class="expand-toggle" onclick="toggleRow('application-level-business-specifications-billing-and-invoice-processing')">
+                <svg viewBox="0 0 16 16"><path d="m6 4 6 4-6 4V4Z"/></svg>
+            </span><a href="ApplicationLevelAnalysis/BillingandInvoiceProcessing/BillingandInvoiceProcessing.html" style="color: #0972d3; text-decoration: none;">Billing and Invoice Processing</a></td><td><span class="status-indicator status-success">
+            <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true">
+                <circle cx="8" cy="8" r="7"></circle>
+                <path d="M4.5 7.5 7 10l4-5" class="stroke-linejoin-round"></path>
+            </svg>
+            Done
+        </span></td><td>Business functions</td></tr><tr class="child-row" data-parent="application-level-business-specifications-billing-and-invoice-processing-" data-level="2" id="row-application-level-business-specifications-billing-and-invoice-processing-bill01"><td class="level-2"><span class="expand-toggle" onclick="toggleRow('application-level-business-specifications-billing-and-invoice-processing-bill01')">
+                <svg viewBox="0 0 16 16"><path d="m6 4 6 4-6 4V4Z"/></svg>
+            </span><a href="ApplicationLevelAnalysis/BillingandInvoiceProcessing/entrypoint-BILL01/entrypoint-BILL01.html" style="color: #0972d3; text-decoration: none;">BILL01</a></td><td><span class="status-indicator status-success">
+            <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true">
+                <circle cx="8" cy="8" r="7"></circle>
+                <path d="M4.5 7.5 7 10l4-5" class="stroke-linejoin-round"></path>
+            </svg>
+            Done
+        </span></td><td>Batch</td></tr><tr class="child-row" data-parent="application-level-business-specifications-billing-and-invoice-processing-bill01-" data-level="3" id="row-application-level-business-specifications-billing-and-invoice-processing-bill01-bill01"><td class="level-3"><a href="jcl/BILL01-jcl.html" style="color: #0972d3; text-decoration: none;">BILL01</a></td><td><span class="status-indicator status-success">
+            <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true">
+                <circle cx="8" cy="8" r="7"></circle>
+                <path d="M4.5 7.5 7 10l4-5" class="stroke-linejoin-round"></path>
+            </svg>
+            Done
+        </span></td><td>JCL Program</td></tr><tr class="child-row" data-parent="application-level-business-specifications-billing-and-invoice-processing-bill01-" data-level="3" id="row-application-level-business-specifications-billing-and-invoice-processing-bill01-billing"><td class="level-3"><a href="/BILLING-cbl.html" style="color: #0972d3; text-decoration: none;">BILLING</a></td><td><span class="status-indicator status-success">
+            <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true">
+                <circle cx="8" cy="8" r="7"></circle>
+                <path d="M4.5 7.5 7 10l4-5" class="stroke-linejoin-round"></path>
+            </svg>
+            Done
+        </span></td><td>CBL Program</td></tr><tr class="child-row" data-parent="application-level-business-specifications-" data-level="1" id="row-application-level-business-specifications-unassigned"><td class="level-1">Unassigned</td><td>-</td><td>Unassigned</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer
+        style="background-color: var(--color-background-container-header); border-top: 1px solid var(--color-border-divider-default); padding: var(--space-l); text-align: right; color: var(--color-text-label); font-size: var(--font-size-body-s);">
+        © <span id="current-year"></span>, Amazon Web Services, Inc. or its affiliates. All rights reserved.
+    </footer>
+    
+
+        <script>
+        // Toggle row expansion with cascading collapse
+        function toggleRow(rowId) {
+            const toggle = document.querySelector(`#row-${rowId} .expand-toggle`);
+            const childRows = document.querySelectorAll(`[data-parent="${rowId}-"]`);
+
+            if (toggle.classList.contains('expanded')) {
+                // Collapse: hide children and cascade collapse all descendants
+                toggle.classList.remove('expanded');
+                childRows.forEach(row => {
+                    row.classList.remove('visible');
+                    // Recursively collapse all descendants
+                    collapseAllDescendants(row);
+                });
+            } else {
+                // Expand: show immediate children only
+                toggle.classList.add('expanded');
+                childRows.forEach(row => row.classList.add('visible'));
+            }
+        }
+
+        // Recursively collapse all descendants
+        function collapseAllDescendants(parentRow) {
+            const toggle = parentRow.querySelector('.expand-toggle');
+            if (toggle) {
+                toggle.classList.remove('expanded');
+            }
+
+            // Find all descendants and collapse them
+            const parentId = parentRow.id.replace('row-', '');
+            const allRows = document.querySelectorAll('tbody tr');
+
+            allRows.forEach(row => {
+                const rowParent = row.dataset.parent;
+                if (rowParent && rowParent.startsWith(parentId + '-')) {
+                    row.classList.remove('visible');
+                    collapseAllDescendants(row);
+                }
+            });
+        }
+
+        // Filter table
+        function filterTable(searchTerm) {
+            const rows = document.querySelectorAll('#table-body tr');
+            const term = searchTerm.toLowerCase();
+
+            if (!term) {
+                rows.forEach(row => {
+                    row.style.display = '';
+                    const toggle = row.querySelector('.expand-toggle');
+                    if (toggle) toggle.classList.remove('expanded');
+                    row.classList.remove('visible');
+                });
+                return;
+            }
+
+            const visibleRows = new Set();
+
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(term)) {
+                    visibleRows.add(row);
+                    // Add all parents
+                    let parent = row.dataset.parent;
+                    while (parent) {
+                        const parentRow = document.getElementById(`row-${parent.slice(0, -1)}`);
+                        if (parentRow) {
+                            visibleRows.add(parentRow);
+                            parent = parentRow.dataset.parent;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            });
+
+            rows.forEach(row => {
+                if (visibleRows.has(row)) {
+                    row.style.display = '';
+                    row.classList.add('visible');
+                    const toggle = row.querySelector('.expand-toggle');
+                    if (toggle) toggle.classList.add('expanded');
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // Sort table while preserving hierarchy
+        let currentSort = { column: -1, direction: 'asc' };
+
+        function sortTable(columnIndex) {
+            const headers = document.querySelectorAll('th');
+            const tbody = document.getElementById('table-body');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            // Save expanded states
+            const expandedStates = {};
+            document.querySelectorAll('.expand-toggle.expanded').forEach(toggle => {
+                const row = toggle.closest('tr');
+                const rowId = row.id.replace('row-', '');
+                expandedStates[rowId] = true;
+            });
+
+            // Update sort direction
+            if (currentSort.column === columnIndex) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.direction = 'asc';
+            }
+            currentSort.column = columnIndex;
+
+            // Update header classes
+            headers.forEach((h, i) => {
+                h.classList.remove('asc', 'desc');
+                if (i === columnIndex) {
+                    h.classList.add(currentSort.direction);
+                }
+            });
+
+            // Sort rows by level, keeping hierarchy
+            const sortedRows = sortRowsHierarchically(rows, columnIndex, currentSort.direction);
+            
+            // Clear and re-append sorted rows
+            tbody.innerHTML = '';
+            sortedRows.forEach(row => tbody.appendChild(row));
+
+            // Restore expanded states
+            Object.keys(expandedStates).forEach(rowId => {
+                const row = document.getElementById(`row-${rowId}`);
+                if (row) {
+                    const toggle = row.querySelector('.expand-toggle');
+                    if (toggle) {
+                        toggle.classList.add('expanded');
+                        const childRows = document.querySelectorAll(`[data-parent="${rowId}-"]`);
+                        childRows.forEach(childRow => childRow.classList.add('visible'));
+                    }
+                }
+            });
+        }
+
+        function sortRowsHierarchically(rows, columnIndex, direction) {
+            // Group rows by level
+            const levels = {};
+            rows.forEach(row => {
+                const level = parseInt(row.dataset.level);
+                if (!levels[level]) levels[level] = [];
+                levels[level].push(row);
+            });
+
+            // Sort each level
+            Object.keys(levels).forEach(level => {
+                levels[level].sort((a, b) => {
+                    const aText = a.cells[columnIndex].textContent.trim().toLowerCase();
+                    const bText = b.cells[columnIndex].textContent.trim().toLowerCase();
+                    const result = aText.localeCompare(bText);
+                    return direction === 'asc' ? result : -result;
+                });
+            });
+
+            // Rebuild hierarchy
+            const result = [];
+            const addRowAndChildren = (row) => {
+                result.push(row);
+                const rowId = row.id.replace('row-', '');
+                const children = levels[parseInt(row.dataset.level) + 1]?.filter(child => 
+                    child.dataset.parent === rowId + '-'
+                ) || [];
+                children.forEach(addRowAndChildren);
+            };
+
+            levels[0]?.forEach(addRowAndChildren);
+            return result;
+        }
+
+        // Initialize table
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('current-year').textContent = new Date().getFullYear()
+
+            // Apply initial sort by name (column 0) ascending
+            sortTable(0);
+
+            // Keep top level always expanded
+            document.querySelectorAll('[data-level="0"] .expand-toggle').forEach(toggle => {
+                toggle.classList.add('expanded');
+                const row = toggle.closest('tr');
+                const rowId = row.id.replace('row-', '');
+                const childRows = document.querySelectorAll(`[data-parent="${rowId}-"]`);
+                childRows.forEach(childRow => childRow.classList.add('visible'));
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,320 @@
+{
+  "documentation": {
+    "high_level_overview": {
+      "program_information": {
+        "name": "BILLING.cbl",
+        "type": "cobol"
+      },
+      "overview": "This program operates within a utility or subscription-based billing domain, serving as a core batch processing component in the monthly invoicing workflow. It reads customer and usage data to produce itemized invoices, functioning as the primary billing engine that transforms raw consumption records into financial charges. The program solves the problem of automating monthly bill generation by applying tiered pricing, volume and customer-type discounts, tax calculations, and carrying forward previous balances to produce a final amount owed for each active customer.",
+      "key_features": [
+        {
+          "feature": "Tiered Usage Pricing",
+          "description": "Applies three rate tiers based on consumption volume: $0.50/unit for up to 500 units, $0.45/unit up to 1,000 units, and $0.40/unit beyond 1,000 units"
+        },
+        {
+          "feature": "Volume Discount",
+          "description": "Automatically applies a 10% discount on usage charges when a customer's consumption exceeds 1,000 units in a billing month"
+        },
+        {
+          "feature": "Premium Customer Discount",
+          "description": "Applies an additional 5% discount on usage charges for customers classified as PREMIUM type, stackable with the volume discount"
+        },
+        {
+          "feature": "Minimum Charge Enforcement",
+          "description": "Ensures a minimum billable amount of $25.00 is applied even when discounts reduce the charge below that threshold"
+        },
+        {
+          "feature": "Tax Calculation",
+          "description": "Computes tax on the taxable amount using a customer-specific tax rate stored in the customer record"
+        },
+        {
+          "feature": "Previous Balance Rollover",
+          "description": "Incorporates each customer's outstanding previous balance into the final invoice total to reflect cumulative amounts owed"
+        },
+        {
+          "feature": "Active Customer Validation",
+          "description": "Skips invoice generation for inactive customers and logs an error message, ensuring only active accounts are billed"
+        },
+        {
+          "feature": "Invoice File Generation",
+          "description": "Produces a pipe-delimited invoice output file containing invoice number, customer details, usage, charges, discounts, tax, and total for downstream processing"
+        },
+        {
+          "feature": "Sequential Customer Lookup",
+          "description": "Reopens and re-scans the customer file for each usage record to match customer details, supporting a simple flat-file architecture without indexed access"
+        }
+      ]
+    },
+    "input_output": [
+      {
+        "name": "CUSTOMER-FILE",
+        "type": "Read",
+        "description": "Customer master file (CUSTOMER.dat) - read sequentially to look up customer details including ID, name, type, status, tax rate, and previous balance for each usage record being processed"
+      },
+      {
+        "name": "USAGE-FILE",
+        "type": "Read",
+        "description": "Usage data file (USAGE.dat) - read sequentially to retrieve customer usage records containing customer ID, units consumed, and billing month, which drive the billing process"
+      },
+      {
+        "name": "INVOICE-FILE",
+        "type": "Write",
+        "description": "Invoice output file (INVOICE.dat) - written with generated invoice records containing invoice number, customer ID, customer name, usage units, usage charge, discount, tax, previous balance, and final total amount due"
+      }
+    ],
+    "data_flow_and_dependencies": {
+      "data_flow": [
+        {
+          "step": 1,
+          "process": "Open Files",
+          "description": "Opens CUSTOMER-FILE and USAGE-FILE for input, and INVOICE-FILE for output",
+          "records": [
+            "CUSTOMER-RECORD",
+            "USAGE-RECORD",
+            "INVOICE-RECORD"
+          ]
+        },
+        {
+          "step": 2,
+          "process": "Read First Usage Record",
+          "description": "Reads the first record from USAGE-FILE to prime the processing loop, populating customer ID, usage units, and billing month",
+          "records": [
+            "USAGE-CUST-ID",
+            "USAGE-UNITS",
+            "USAGE-MONTH"
+          ]
+        },
+        {
+          "step": 3,
+          "process": "Begin Usage Processing Loop",
+          "description": "Iterates over each usage record until end-of-file is reached on USAGE-FILE",
+          "records": [
+            "WS-CURRENT-CUSTOMER-ID",
+            "WS-USAGE-UNITS",
+            "WS-BILLING-MONTH"
+          ]
+        },
+        {
+          "step": 4,
+          "process": "Find Customer Record",
+          "description": "Closes and reopens CUSTOMER-FILE from the beginning for each usage record, performing a sequential scan to find the matching customer by CUST-ID",
+          "records": [
+            "CUST-ID",
+            "WS-CURRENT-CUSTOMER-ID",
+            "WS-FOUND-CUSTOMER",
+            "WS-END-CUSTOMER"
+          ]
+        },
+        {
+          "step": 5,
+          "process": "Validate Customer Status",
+          "description": "Checks that the matched customer record has a status of ACTIVE before proceeding with billing; logs an error to console if inactive or not found",
+          "records": [
+            "CUST-STATUS",
+            "CUST-ID"
+          ]
+        },
+        {
+          "step": 6,
+          "process": "Calculate Usage Charge",
+          "description": "Applies a tiered rate to usage units: 0.50 per unit for up to 500 units, 0.45 for 501-1000 units, and 0.40 for over 1000 units",
+          "records": [
+            "WS-USAGE-UNITS",
+            "WS-RATE",
+            "WS-USAGE-CHARGE"
+          ]
+        },
+        {
+          "step": 7,
+          "process": "Apply Volume Discount",
+          "description": "If usage units exceed the volume threshold of 1000, applies a 10% discount to the usage charge",
+          "records": [
+            "WS-USAGE-UNITS",
+            "WS-VOLUME-THRESHOLD",
+            "WS-USAGE-CHARGE",
+            "WS-VOLUME-DISCOUNT-RATE",
+            "WS-DISCOUNT"
+          ]
+        },
+        {
+          "step": 8,
+          "process": "Apply Premium Customer Discount",
+          "description": "If the customer type is PREMIUM, adds an additional 5% discount on top of any existing volume discount",
+          "records": [
+            "CUST-TYPE",
+            "WS-USAGE-CHARGE",
+            "WS-PREMIUM-DISCOUNT-RATE",
+            "WS-DISCOUNT"
+          ]
+        },
+        {
+          "step": 9,
+          "process": "Enforce Minimum Charge",
+          "description": "Computes the taxable amount as usage charge minus discounts; if the result is below the minimum charge of $25.00, the minimum charge is used instead",
+          "records": [
+            "WS-USAGE-CHARGE",
+            "WS-DISCOUNT",
+            "WS-MINIMUM-CHARGE",
+            "WS-TAXABLE-AMOUNT"
+          ]
+        },
+        {
+          "step": 10,
+          "process": "Calculate Tax",
+          "description": "Applies the customer-specific tax rate from the customer record to the taxable amount to derive the tax amount",
+          "records": [
+            "WS-TAXABLE-AMOUNT",
+            "CUST-TAX-RATE",
+            "WS-TAX"
+          ]
+        },
+        {
+          "step": 11,
+          "process": "Calculate Final Invoice Amount",
+          "description": "Sums the taxable amount, tax, and the customer's previous balance to produce the final amount due",
+          "records": [
+            "WS-TAXABLE-AMOUNT",
+            "WS-TAX",
+            "CUST-PREV-BALANCE",
+            "WS-FINAL-AMOUNT"
+          ]
+        },
+        {
+          "step": 12,
+          "process": "Generate Invoice Number",
+          "description": "Constructs a unique invoice number by concatenating the billing month and customer ID separated by a hyphen",
+          "records": [
+            "WS-BILLING-MONTH",
+            "CUST-ID",
+            "WS-INVOICE-NUMBER"
+          ]
+        },
+        {
+          "step": 13,
+          "process": "Format Invoice Output Line",
+          "description": "Formats all billing fields into display-ready numeric formats and concatenates them into a pipe-delimited output line of up to 180 characters",
+          "records": [
+            "WS-INVOICE-NUMBER",
+            "CUST-ID",
+            "CUST-NAME",
+            "WS-USAGE-UNITS",
+            "WS-DISPLAY-CHARGE",
+            "WS-DISPLAY-DISCOUNT",
+            "WS-DISPLAY-TAX",
+            "WS-DISPLAY-BALANCE",
+            "WS-DISPLAY-TOTAL",
+            "WS-OUTPUT-LINE"
+          ]
+        },
+        {
+          "step": 14,
+          "process": "Write Invoice Record",
+          "description": "Writes the formatted output line to INVOICE-FILE and displays the invoice number to the console",
+          "records": [
+            "INVOICE-RECORD",
+            "WS-OUTPUT-LINE",
+            "WS-INVOICE-NUMBER"
+          ]
+        },
+        {
+          "step": 15,
+          "process": "Read Next Usage Record",
+          "description": "Reads the next record from USAGE-FILE to continue the processing loop or sets end-of-file flag to terminate",
+          "records": [
+            "USAGE-CUST-ID",
+            "USAGE-UNITS",
+            "USAGE-MONTH",
+            "WS-END-USAGE"
+          ]
+        },
+        {
+          "step": 16,
+          "process": "Close Files and Terminate",
+          "description": "Closes all three files after the usage loop completes, displays a completion message, and stops the program",
+          "records": [
+            "CUSTOMER-FILE",
+            "USAGE-FILE",
+            "INVOICE-FILE"
+          ]
+        }
+      ],
+      "data_dependencies": [
+        {
+          "dependency": "Sequential customer file re-scan per usage record",
+          "description": "CUSTOMER-FILE is closed and reopened from the beginning for every usage record processed. This means customer lookup is O(n*m) and the customer file must remain accessible and unchanged throughout the entire run. Any external modification to CUSTOMER.dat during execution could produce inconsistent results."
+        },
+        {
+          "dependency": "Usage record drives customer lookup",
+          "description": "The customer ID read from USAGE-FILE (USAGE-CUST-ID) is the sole key used to locate the corresponding CUSTOMER-FILE record. If a usage record references a customer ID not present in CUSTOMER-FILE, billing is skipped entirely for that usage record and only a console error is produced."
+        },
+        {
+          "dependency": "CUST-STATUS must be ACTIVE for billing to proceed",
+          "description": "Even if a customer is found in CUSTOMER-FILE, billing calculation and invoice generation are gated on CUST-STATUS equaling the literal 'ACTIVE'. Inactive customers produce a console error but no invoice, creating a silent revenue gap if not monitored."
+        },
+        {
+          "dependency": "CUST-TYPE controls premium discount eligibility",
+          "description": "The additional 5% premium discount in CALCULATE-BILL depends on CUST-TYPE equaling the literal 'PREMIUM'. The field is 10 characters wide, so trailing spaces or case differences would cause the condition to fail silently."
+        },
+        {
+          "dependency": "WS-DISCOUNT accumulation order",
+          "description": "The volume discount is calculated first and stored in WS-DISCOUNT. The premium discount is then added to the existing WS-DISCOUNT value. If the volume discount block is not entered (units <= threshold), WS-DISCOUNT remains zero before the premium discount is applied, which is the correct behavior, but the sequential dependency means reordering these blocks would change results."
+        },
+        {
+          "dependency": "CUST-PREV-BALANCE included in final amount without validation",
+          "description": "The previous balance from CUSTOMER-FILE is added directly to WS-FINAL-AMOUNT without any range check or sign validation. A corrupt or negative CUST-PREV-BALANCE value would silently distort the invoice total."
+        },
+        {
+          "dependency": "WS-OUTPUT-LINE fixed at 180 characters",
+          "description": "The STRING operation concatenates all invoice fields into WS-OUTPUT-LINE which is defined as PIC X(180). If the combined length of all fields exceeds 180 characters, data will be silently truncated in the written invoice record."
+        },
+        {
+          "dependency": "INVOICE-FILE opened once for the entire run",
+          "description": "INVOICE-FILE is opened once at the start and all invoice records are appended sequentially. There is no error handling for write failures; a disk-full or I/O error would cause an abnormal termination with no recovery mechanism."
+        },
+        {
+          "dependency": "Minimum charge overrides discount logic",
+          "description": "If the net charge after discounts falls below $25.00, the taxable amount is set to the minimum charge, effectively ignoring the computed discount. Tax and previous balance are still applied on top of this minimum, meaning the final amount can still exceed the minimum charge."
+        },
+        {
+          "dependency": "No duplicate usage record detection",
+          "description": "There is no check for duplicate USAGE-CUST-ID and USAGE-MONTH combinations in USAGE-FILE. If the same customer appears twice for the same month, two separate invoices will be generated without any warning."
+        }
+      ],
+      "called_programs": []
+    },
+    "error_handling": [
+      {
+        "category": "Customer Lookup Errors",
+        "description": "When a customer ID from the usage file cannot be matched in the customer file, the program displays an error message to the console (DISPLAY 'ERROR: CUSTOMER NOT FOUND - ' WS-CURRENT-CUSTOMER-ID) and skips processing for that usage record, continuing to the next one without halting execution."
+      },
+      {
+        "category": "Customer Status Errors",
+        "description": "When a matched customer record has a status other than 'ACTIVE', the program displays an error message to the console (DISPLAY 'ERROR: CUSTOMER IS NOT ACTIVE - ' WS-CURRENT-CUSTOMER-ID) and skips invoice generation for that record, continuing to the next usage record without halting execution."
+      },
+      {
+        "category": "File Operation Errors",
+        "description": "There is no explicit error handling for file open, close, read, or write operations. No FILE STATUS clauses are defined in the FILE-CONTROL section, and no INVALID KEY, ON EXCEPTION, or status code checks are present. File errors would cause unhandled runtime abends."
+      },
+      {
+        "category": "End-of-File Handling",
+        "description": "End-of-file conditions are handled gracefully for both the usage file and the customer file using AT END clauses on READ statements, setting boolean flags (END-OF-USAGE, END-OF-CUSTOMER) to terminate their respective processing loops cleanly."
+      },
+      {
+        "category": "Minimum Charge Enforcement",
+        "description": "A business-rule guard is applied during billing calculation: if the computed charge after discounts falls below the minimum charge threshold (25.00), the taxable amount is set to the minimum charge value, preventing undercharging rather than raising an error."
+      },
+      {
+        "category": "Data Validation Errors",
+        "description": "There is no input data validation for fields such as USAGE-UNITS, CUST-TAX-RATE, CUST-PREV-BALANCE, or CUST-TYPE beyond the active status check. Invalid or malformed data in these fields would propagate silently into calculations without any error reporting or rejection logic."
+      },
+      {
+        "category": "Arithmetic Errors",
+        "description": "No ON SIZE ERROR clauses are used on any COMPUTE statements. Numeric overflow in fields such as WS-USAGE-CHARGE, WS-FINAL-AMOUNT, or WS-TAX would result in silent truncation or a runtime abend depending on the COBOL runtime environment."
+      },
+      {
+        "category": "Invoice Write Errors",
+        "description": "The WRITE statement for INVOICE-RECORD has no INVALID KEY or exception handling clause. Any failure during invoice file writing would result in an unhandled runtime error with no diagnostic message or recovery logic."
+      }
+    ]
+  }
+}

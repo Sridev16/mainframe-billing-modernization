@@ -1,0 +1,21 @@
+{
+    "created_on": "2026-08-18",
+    "name": "BILL01.jcl",
+    "file_path": "jcl/BILL01.jcl",
+    "type": "jcl",
+    "description": "The JCL job BILL01 executes the BILLING program to perform monthly billing processing for customers. It reads customer and usage data from legacy billing files and generates or updates invoice records based on the consumption data.Key Functionalities:\nReads customer account information from the legacy billing customer file to identify accounts subject to monthly billing\nReads usage data from the legacy billing usage file to determine consumption amounts for each customer\nWrites or updates invoice records to the legacy billing invoice file based on customer usage, producing the monthly billing output",
+    "rules": [
+        {
+            "Rule_Id": "R-BILL01-jcl-00001",
+            "Acceptance_Criteria": {
+                "Given": "The Customer Master file (CUSTOMER) containing customer account details is available for shared read access, AND the Usage Data file (USAGEIN) containing customer consumption or service usage records is available for shared read access, AND the Invoice file (INVOICE) already exists and is available for exclusive access",
+                "When": "The Monthly Billing process is initiated and the BILLING program is executed",
+                "Then": "The BILLING program reads all customer account details from the Customer Master file, AND reads all usage and consumption records from the Usage Data file, AND calculates billing charges by matching each customer's usage records to their account, AND writes the resulting invoice records exclusively into the Invoice file, ensuring no other process can access the Invoice file during writing"
+            },
+            "Rule_Name": "STEP01 - BILLING - Monthly Invoice Generation",
+            "Rule_Description": "When the Monthly Billing job is triggered, the BILLING program reads the Customer Master file and the Usage Data file to calculate charges and produce invoice records into the Invoice file. The Invoice file must already exist and is exclusively locked during processing to ensure data integrity.",
+            "Rule_Type": "Action Rules"
+        }
+    ],
+    "flow_diagram_code": "flowchart TD\n    classDef start fill:#ff6666,stroke:#333,color:#000\n    classDef process fill:#6699ff,stroke:#333,color:#000\n    classDef decision fill:#ffcc00,stroke:#333,color:#000\n    classDef datasource fill:#66ff66,stroke:#333,color:#000\n    classDef final fill:#ae74de,stroke:#333,color:#fff\n    classDef success fill:#22c55e,stroke:#333,color:#000\n    classDef error fill:#ef4444,stroke:#333,color:#fff\n\n    A([JOB START]):::start\n    B[STEP01 - BILLING\nInvoice Generation and\nBilling Calculation]:::process\n    N[No Datasets\nNo Sequential Files\nNo DB2 Tables Identified]:::process\n    Z([JOB END]):::final\n\n    A --> B\n    B --> N\n    N --> Z"
+}

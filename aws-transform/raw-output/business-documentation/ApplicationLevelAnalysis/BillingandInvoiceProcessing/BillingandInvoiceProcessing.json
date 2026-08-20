@@ -1,0 +1,22 @@
+{
+  "created_on": "2026-08-18",
+  "type": "business_function",
+  "document_name": "Billing and Invoice Processing",
+  "brief_description": "Manages the end-to-end monthly billing cycle, calculating customer charges and generating invoices based on usage, rates, discounts, and taxes.",
+  "business_purpose": "This business function drives the core revenue generation process by executing the monthly billing cycle for all active customers. It consolidates customer account data, usage information, applicable rate structures, and discount programs to produce accurate, complete invoices. By incorporating tiered pricing, volume and premium discounts, tax calculations, and outstanding balances, it ensures customers are billed correctly and consistently each billing period. This function is critical to the organization's cash flow, customer satisfaction, and financial accuracy.",
+  "key_capabilities": [
+    "Monthly billing cycle execution for all active customer accounts",
+    "Tiered rate application and usage-based charge calculation",
+    "Volume and premium discount processing and application",
+    "Tax calculation and previous balance incorporation into invoices",
+    "Invoice generation and output for customer billing distribution"
+  ],
+  "components": [
+    {
+      "name": "BILL01",
+      "type": "Batch",
+      "business_function": "Monthly billing cycle processor responsible for reading customer account and usage data, applying rates, discounts, and taxes, and generating complete customer invoices",
+      "entry_point_program": "BILL01"
+    }
+  ]
+}

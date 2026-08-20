@@ -1,0 +1,1957 @@
+{
+    "name": "BILLING.cbl",
+    "program_name": "BILLING.cbl",
+    "generated_at": "2026-08-18T06:50:27Z",
+    "overview": {
+        "total_key_functionalities": 14,
+        "total_rules": 75,
+        "main_flow_diagram": "flowchart TD\n    A([Start Billing Process]):::start\n    B[Open USAGE, CUSTOMER & INVOICE Files]:::process\n    C[1:Read Usage Record]:::process\n    D{End of Usage File?}:::decision\n    E[2:Find Customer]:::process\n    F{Customer Found?}:::decision\n    G[3:Validate Customer Status]:::process\n    H{Customer Status = ACTIVE?}:::decision\n    I[4:Determine Usage Rate\nTier 1: \u2264500 units @ $0.50\nTier 2: 501-1000 units @ $0.45\nTier 3: >1000 units @ $0.40]:::process\n    J[5:Calculate Usage Charge\nUnits \u00d7 Rate]:::process\n    K{Units > 1000\nVolume Threshold?}:::decision\n    L[6:Apply Volume Discount\n10% off Usage Charge]:::process\n    M{Customer Type\n= PREMIUM?}:::decision\n    N[7:Apply Premium Customer Discount\nAdditional 5% off Usage Charge]:::process\n    O[8:Apply Minimum Charge Rule\nMinimum Charge = $25.00]:::process\n    P[9:Calculate Tax\nTaxable Amount \u00d7 Customer Tax Rate]:::process\n    Q[10:Calculate Final Invoice Amount\nTaxable Amount + Tax + Previous Balance]:::process\n    R[11:Generate Invoice Number\nBilling Month + Customer ID]:::process\n    S[12:Format Invoice Output\nFormat all monetary values]:::process\n    T[13:Write Invoice Record]:::process\n    ERR1[Log Error:\nCustomer Not Found]:::error\n    ERR2[Log Error:\nCustomer Is Not Active]:::error\n    U[14:Billing Process Completion\nClose All Files & Display Completion Message]:::process\n    Z([End Billing Process]):::final\n\n    USAGE_FILE[(USAGE.dat\nUsage File)]:::datasource\n    CUSTOMER_FILE[(CUSTOMER.dat\nCustomer File)]:::datasource\n    INVOICE_FILE[(INVOICE.dat\nInvoice File)]:::datasource\n\n    A --> B\n    B --> C\n    USAGE_FILE -.->|Read Usage Record| C\n    C --> D\n    D -->|No - More Records| E\n    CUSTOMER_FILE -.->|Search Customer Record| E\n    E --> F\n    F -->|No - Not Found| ERR1\n    ERR1 --> C\n    F -->|Yes - Found| G\n    G --> H\n    H -->|No - Inactive| ERR2\n    ERR2 --> C\n    H -->|Yes - Active| I\n    I --> J\n    J --> K\n    K -->|Yes - Apply Volume Discount| L\n    L --> M\n    K -->|No - No Volume Discount| M\n    M -->|Yes - Premium Customer| N\n    N --> O\n    M -->|No - Standard Customer| O\n    O --> P\n    P --> Q\n    Q --> R\n    R --> S\n    S --> T\n    T -.->|Write Invoice Record| INVOICE_FILE\n    T --> C\n    D -->|Yes - No More Records| U\n    U --> Z\n\n    classDef start fill:#67A353,color:#fff,stroke:#67A353\n    classDef process fill:#08AAD2,color:#fff,stroke:#08AAD2\n    classDef decision fill:#FFE347,color:#000,stroke:#FFE347\n    classDef datasource fill:#2EA597,color:#fff,stroke:#2EA597\n    classDef final fill:#D13313,color:#fff,stroke:#D13313\n    classDef success fill:#2BB534,color:#fff,stroke:#2BB534\n    classDef error fill:#D13313,color:#fff,stroke:#D13313",
+        "rules": [
+            {
+                "rule_id": "R-BILLING-cbl-00001",
+                "rule_type": "Process Rules",
+                "rule_name": "Open Required Business Files to Begin Billing",
+                "rule_description": "Before any billing activity can begin, the system must have access to all three required data sources: the Usage File (containing consumption records), the Customer File (containing customer master data), and the Invoice File (where generated invoices will be written).",
+                "sub_graph_node_text": "Open USAGE, CUSTOMER & INVOICE Files",
+                "acceptance_criteria": {
+                    "Given": "The billing process is initiated",
+                    "When": "The system starts the billing run",
+                    "Then": "The system must open the Usage File for reading, the Customer File for reading, and the Invoice File for writing before any billing records are processed"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00002",
+                "rule_type": "Process Rules",
+                "rule_name": "Read Usage Record to Drive Billing Cycle",
+                "rule_description": "The billing process is driven by usage records. Each usage record contains the customer identifier, the number of units consumed, and the billing month. The system reads one usage record at a time and uses it as the basis for generating a customer invoice.",
+                "sub_graph_node_text": "1:Read Usage Record",
+                "acceptance_criteria": {
+                    "Given": "The Usage File is open and available for reading",
+                    "When": "The system reads the next usage record from the Usage File",
+                    "Then": "The system captures the Customer ID, Usage Units, and Billing Month from the usage record and uses these values for all subsequent billing calculations for that customer"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00003",
+                "rule_type": "Process Rules",
+                "rule_name": "Detect End of Usage File to Terminate Billing Loop",
+                "rule_description": "The billing process must continue processing usage records until all records in the Usage File have been processed. When no more usage records exist, the billing cycle ends.",
+                "sub_graph_node_text": "End of Usage File?",
+                "acceptance_criteria": {
+                    "Given": "The system is in the billing processing loop reading usage records",
+                    "When": "A read attempt is made on the Usage File",
+                    "Then": "If there are more records, the system proceeds to find the customer and generate a bill; if there are no more records (end of file), the system exits the billing loop and proceeds to close all files and display the completion message"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00004",
+                "rule_type": "Process Rules",
+                "rule_name": "Locate Customer Record in Customer Master",
+                "rule_description": "For each usage record read, the system must locate the corresponding customer in the Customer Master File using the Customer ID from the usage record. The Customer Master File is searched from the beginning for every usage record to ensure the correct customer data is retrieved.",
+                "sub_graph_node_text": "2:Find Customer",
+                "acceptance_criteria": {
+                    "Given": "A usage record has been read with a specific Customer ID",
+                    "When": "The system searches the Customer Master File",
+                    "Then": "The system scans the Customer Master File from the beginning, comparing each customer record's Customer ID against the Customer ID from the usage record, and marks the customer as found when a match is identified; if no match is found after scanning all records, the customer is marked as not found"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00005",
+                "rule_type": "Validation Rules",
+                "rule_name": "Handle Customer Not Found in Customer Master",
+                "rule_description": "If a usage record references a Customer ID that does not exist in the Customer Master File, the system cannot generate an invoice. The error must be logged and the system must continue processing the next usage record.",
+                "sub_graph_node_text": "Log Error: Customer Not Found",
+                "acceptance_criteria": {
+                    "Given": "A usage record has been read with a specific Customer ID",
+                    "When": "The Customer ID from the usage record does not match any record in the Customer Master File",
+                    "Then": "The system logs the error message 'ERROR: CUSTOMER NOT FOUND' along with the unmatched Customer ID, skips invoice generation for this usage record, and proceeds to read the next usage record"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00006",
+                "rule_type": "Validation Rules",
+                "rule_name": "Validate Customer Active Status Before Billing",
+                "rule_description": "Only customers with an ACTIVE status are eligible to receive invoices. The customer status must be validated after the customer record is found in the Customer Master File.",
+                "sub_graph_node_text": "3:Validate Customer Status",
+                "acceptance_criteria": {
+                    "Given": "A customer record has been found in the Customer Master File matching the Customer ID from the usage record",
+                    "When": "The system evaluates the customer's status field",
+                    "Then": "If the customer status is 'ACTIVE', the system proceeds to calculate the bill and generate an invoice; if the customer status is anything other than 'ACTIVE', the system logs an error and skips invoice generation for this customer"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00007",
+                "rule_type": "Policy Rules",
+                "rule_name": "Handle Inactive Customer \u2014 Skip Invoice Generation",
+                "rule_description": "If a customer exists in the Customer Master File but their status is not ACTIVE, the system must not generate an invoice. The error must be logged and the system must continue processing the next usage record.",
+                "sub_graph_node_text": "Log Error: Customer Is Not Active",
+                "acceptance_criteria": {
+                    "Given": "A customer record has been found in the Customer Master File",
+                    "When": "The customer's status is not 'ACTIVE'",
+                    "Then": "The system logs the error message 'ERROR: CUSTOMER IS NOT ACTIVE' along with the Customer ID, skips all billing calculations and invoice generation for this usage record, and proceeds to read the next usage record"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00008",
+                "rule_type": "Decision Rules",
+                "rule_name": "Determine Per-Unit Rate Based on Usage Tier",
+                "rule_description": "The per-unit billing rate is determined by the total number of units consumed in the billing period. Three pricing tiers exist, and the applicable rate is a single flat rate applied to all units based on which tier the total consumption falls into.",
+                "sub_graph_node_text": "4:Determine Usage Rate\nTier 1: \u2264500 units @ $0.50\nTier 2: 501-1000 units @ $0.45\nTier 3: >1000 units @ $0.40",
+                "acceptance_criteria": {
+                    "Given": "An active customer's usage record is being processed with a known number of usage units",
+                    "When": "The system determines the applicable billing rate",
+                    "Then": "If usage units are 500 or fewer, the rate is set to $0.50 per unit; if usage units are between 501 and 1000 (inclusive), the rate is set to $0.45 per unit; if usage units exceed 1000, the rate is set to $0.40 per unit \u2014 the selected rate applies to all units consumed"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00009",
+                "rule_type": "Computation Rules",
+                "rule_name": "Calculate Usage Charge from Units and Rate",
+                "rule_description": "The base usage charge is calculated by multiplying the total units consumed by the applicable per-unit rate determined from the pricing tier.",
+                "sub_graph_node_text": "5:Calculate Usage Charge\nUnits \u00d7 Rate",
+                "acceptance_criteria": {
+                    "Given": "The usage units and the applicable per-unit rate have been determined",
+                    "When": "The system calculates the usage charge",
+                    "Then": "The Usage Charge is computed as: Usage Units multiplied by the Per-Unit Rate"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00010",
+                "rule_type": "Decision Rules",
+                "rule_name": "Apply Volume Discount When Usage Exceeds Threshold",
+                "rule_description": "Customers whose usage exceeds the defined volume threshold qualify for a volume discount. The discount is calculated as a percentage of the usage charge and reduces the amount the customer owes.",
+                "sub_graph_node_text": "Units > 1000\nVolume Threshold?",
+                "acceptance_criteria": {
+                    "Given": "The usage charge has been calculated for an active customer",
+                    "When": "The system checks whether the customer's usage units exceed the Volume Threshold",
+                    "Then": "If usage units are greater than the Volume Threshold, a Volume Discount is calculated as the Usage Charge multiplied by the Volume Discount Rate and stored as the discount amount; if usage units do not exceed the Volume Threshold, no volume discount is applied and the discount amount remains zero"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00011",
+                "rule_type": "Decision Rules",
+                "rule_name": "Apply Additional Premium Customer Discount",
+                "rule_description": "Customers classified as PREMIUM receive an additional discount on top of any volume discount already applied. This premium discount is calculated as a percentage of the original usage charge and is added to the existing discount amount.",
+                "sub_graph_node_text": "7:Apply Premium Customer Discount\nAdditional 5% off Usage Charge",
+                "acceptance_criteria": {
+                    "Given": "The usage charge has been calculated and any applicable volume discount has been determined",
+                    "When": "The system checks whether the customer type is 'PREMIUM'",
+                    "Then": "If the customer type is 'PREMIUM', the Premium Discount is calculated as the Usage Charge multiplied by the Premium Discount Rate, and this amount is added to any existing discount (volume discount); the total discount becomes: existing discount plus premium discount; if the customer type is not 'PREMIUM', no additional premium discount is applied"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00012",
+                "rule_type": "Policy Rules",
+                "rule_name": "Enforce Minimum Charge Floor on Taxable Amount",
+                "rule_description": "To ensure the business always recovers a baseline revenue amount, a minimum charge floor is enforced. If the net charge after all discounts falls below the minimum charge, the taxable amount is set to the minimum charge instead.",
+                "sub_graph_node_text": "8:Apply Minimum Charge Rule\nMinimum Charge = $25.00",
+                "acceptance_criteria": {
+                    "Given": "The usage charge and all applicable discounts have been calculated",
+                    "When": "The system computes the net charge by subtracting total discounts from the usage charge",
+                    "Then": "If the net charge (Usage Charge minus Total Discount) is less than the Minimum Charge of $25.00, the Taxable Amount is set to $25.00; otherwise, the Taxable Amount is set to the net charge (Usage Charge minus Total Discount)"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00013",
+                "rule_type": "Computation Rules",
+                "rule_name": "Calculate Tax Using Customer-Specific Tax Rate",
+                "rule_description": "Tax is calculated on the taxable amount using the individual customer's tax rate stored in the Customer Master record. Each customer may have a different tax rate, reflecting their applicable tax jurisdiction or classification.",
+                "sub_graph_node_text": "9:Calculate Tax\nTaxable Amount \u00d7 Customer Tax Rate",
+                "acceptance_criteria": {
+                    "Given": "The taxable amount has been determined after applying discounts and the minimum charge rule",
+                    "When": "The system calculates the tax for the invoice",
+                    "Then": "The Tax Amount is computed as: Taxable Amount multiplied by the Customer's Tax Rate (retrieved from the Customer Master record)"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00014",
+                "rule_type": "Computation Rules",
+                "rule_name": "Calculate Final Invoice Amount Including Previous Balance",
+                "rule_description": "The final amount due on the invoice includes the current period's taxable charge, the tax amount, and any outstanding previous balance carried forward from the customer's account.",
+                "sub_graph_node_text": "10:Calculate Final Invoice Amount\nTaxable Amount + Tax + Previous Balance",
+                "acceptance_criteria": {
+                    "Given": "The taxable amount and tax amount have been calculated, and the customer's previous balance is available from the Customer Master record",
+                    "When": "The system calculates the final invoice amount",
+                    "Then": "The Final Invoice Amount is computed as: Taxable Amount plus Tax Amount plus Customer's Previous Balance"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00015",
+                "rule_type": "Definitional Rules",
+                "rule_name": "Generate Unique Invoice Number from Billing Month and Customer ID",
+                "rule_description": "Each invoice must have a unique identifier that ties it to a specific billing period and customer. The invoice number is constructed by combining the billing month from the usage record and the customer ID.",
+                "sub_graph_node_text": "11:Generate Invoice Number\nBilling Month + Customer ID",
+                "acceptance_criteria": {
+                    "Given": "The billing month from the usage record and the customer ID from the Customer Master are available",
+                    "When": "The system generates the invoice number",
+                    "Then": "The Invoice Number is constructed by concatenating the Billing Month, a hyphen separator '-', and the Customer ID (format: BILLING-MONTH-CUSTOMERID)"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00016",
+                "rule_type": "Process Rules",
+                "rule_name": "Format All Monetary Values for Invoice Output",
+                "rule_description": "Before writing the invoice record, all monetary values must be formatted into their display representation to ensure the invoice output is correctly structured and readable.",
+                "sub_graph_node_text": "12:Format Invoice Output\nFormat all monetary values",
+                "acceptance_criteria": {
+                    "Given": "All billing calculations have been completed including usage charge, discount, tax, previous balance, and final amount",
+                    "When": "The system prepares the invoice record for output",
+                    "Then": "The system formats the Usage Charge, Total Discount, Tax Amount, Previous Balance, and Final Amount into their display formats, then assembles a pipe-delimited output record containing: Invoice Number, Customer ID, Customer Name, Usage Units, Formatted Usage Charge, Formatted Discount, Formatted Tax, Formatted Previous Balance, and Formatted Final Amount \u2014 in that order"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00017",
+                "rule_type": "Process Rules",
+                "rule_name": "Write Completed Invoice Record to Invoice File",
+                "rule_description": "Once the invoice has been fully calculated and formatted, the invoice record must be written to the Invoice File and a confirmation message displayed to acknowledge successful invoice generation.",
+                "sub_graph_node_text": "13:Write Invoice Record",
+                "acceptance_criteria": {
+                    "Given": "The invoice output record has been fully formatted with all required fields",
+                    "When": "The system writes the invoice",
+                    "Then": "The formatted invoice record is written to the Invoice File, and the system displays the confirmation message 'INVOICE GENERATED:' followed by the Invoice Number"
+                },
+                "key_functionality_id": "overview"
+            },
+            {
+                "rule_id": "R-BILLING-cbl-00018",
+                "rule_type": "Process Rules",
+                "rule_name": "Close All Files and Confirm Billing Process Completion",
+                "rule_description": "Once all usage records have been processed, the billing run must be formally concluded by closing all open files and displaying a completion message to confirm the billing process has finished successfully.",
+                "sub_graph_node_text": "14:Billing Process Completion\nClose All Files & Display Completion Message",
+                "acceptance_criteria": {
+                    "Given": "All usage records in the Usage File have been processed",
+                    "When": "The end of the Usage File is reached and the billing loop exits",
+                    "Then": "The system closes the Customer File, Usage File, and Invoice File, then displays the completion message 'BILL01 BILLING PROCESS COMPLETE' and terminates the billing process"
+                },
+                "key_functionality_id": "overview"
+            }
+        ]
+    },
+    "key_functionalities": [
+        {
+            "id": "read-usage-record",
+            "title": "Read Usage Record",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([Start: Read Usage Record])\n    B[Read Next Record from Usage File]\n    C{Record Available?}\n    D[Capture Customer ID]\n    E[Capture Number of Units Consumed]\n    F[Capture Billing Month]\n    G([End: Usage Record Ready for Processing])\n    H([End: No More Usage Records\\nStop Processing])\n    USAGE_FILE[(USAGE.dat\\nUsage File)]\n\n    A --> B\n    USAGE_FILE -.->|Read| B\n    B --> C\n    C -->|Yes - Record Found| D\n    D --> E\n    E --> F\n    F --> G\n    C -->|No - End of File| H",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00019",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Read Next Usage Record from Usage File",
+                    "rule_description": "The billing system reads each customer usage record sequentially from the Usage File (USAGE.dat) to retrieve billing data for processing.",
+                    "sub_graph_node_text": "Read Next Record from Usage File",
+                    "acceptance_criteria": {
+                        "Given": "The Usage File (USAGE.dat) is open and available for reading, and the billing process has been initiated or a previous usage record has already been processed",
+                        "When": "The system attempts to read the next sequential record from the Usage File",
+                        "Then": "The system retrieves the next available usage record containing the customer's usage data for the billing period"
+                    },
+                    "key_functionality_id": "read-usage-record"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00020",
+                    "rule_type": "Decision Rules",
+                    "rule_name": "Detect End of Usage File to Stop Processing",
+                    "rule_description": "When no more usage records exist in the Usage File, the billing process must recognize the end-of-file condition and stop processing further records.",
+                    "sub_graph_node_text": "Record Available?",
+                    "acceptance_criteria": {
+                        "Given": "The system is reading records sequentially from the Usage File",
+                        "When": "The system attempts to read a record and no more records are available in the Usage File (end-of-file condition is reached)",
+                        "Then": "The system sets the End-of-Usage indicator to TRUE, which terminates the main billing processing loop and no further usage records are processed"
+                    },
+                    "key_functionality_id": "read-usage-record"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00021",
+                    "rule_type": "Definitional Rules",
+                    "rule_name": "Capture Customer ID from Usage Record",
+                    "rule_description": "When a valid usage record is successfully read, the Customer ID from the usage record must be captured as the current customer being billed, so it can be used to look up the customer in the Customer Master.",
+                    "sub_graph_node_text": "Capture Customer ID",
+                    "acceptance_criteria": {
+                        "Given": "A usage record has been successfully read from the Usage File and a record is available (not end-of-file)",
+                        "When": "The system processes the successfully read usage record",
+                        "Then": "The Customer ID field from the usage record (USAGE-CUST-ID) is captured and stored as the current Customer ID (WS-CURRENT-CUSTOMER-ID) to be used for customer lookup and invoice generation"
+                    },
+                    "key_functionality_id": "read-usage-record"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00022",
+                    "rule_type": "Definitional Rules",
+                    "rule_name": "Capture Number of Units Consumed from Usage Record",
+                    "rule_description": "When a valid usage record is successfully read, the number of units consumed by the customer must be captured from the usage record, as it drives rate tier selection, discount eligibility, and charge calculation.",
+                    "sub_graph_node_text": "Capture Number of Units Consumed",
+                    "acceptance_criteria": {
+                        "Given": "A usage record has been successfully read from the Usage File and a record is available (not end-of-file)",
+                        "When": "The system processes the successfully read usage record",
+                        "Then": "The units consumed field from the usage record (USAGE-UNITS) is captured and stored as the current usage units (WS-USAGE-UNITS) to be used in billing calculations including rate determination, volume discount eligibility, and usage charge computation"
+                    },
+                    "key_functionality_id": "read-usage-record"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00023",
+                    "rule_type": "Definitional Rules",
+                    "rule_name": "Capture Billing Month from Usage Record",
+                    "rule_description": "When a valid usage record is successfully read, the billing month must be captured from the usage record, as it identifies the period for which the customer is being billed and is used to construct the invoice number.",
+                    "sub_graph_node_text": "Capture Billing Month",
+                    "acceptance_criteria": {
+                        "Given": "A usage record has been successfully read from the Usage File and a record is available (not end-of-file)",
+                        "When": "The system processes the successfully read usage record",
+                        "Then": "The billing month field from the usage record (USAGE-MONTH) is captured and stored as the current billing month (WS-BILLING-MONTH) to be used for invoice number generation in the format [BILLING-MONTH]-[CUSTOMER-ID]"
+                    },
+                    "key_functionality_id": "read-usage-record"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00024",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Usage Record Ready for Billing Processing",
+                    "rule_description": "Only when all three required data elements \u2014 Customer ID, Units Consumed, and Billing Month \u2014 have been successfully captured from a usage record is the record considered complete and ready to proceed to customer lookup and bill calculation.",
+                    "sub_graph_node_text": "End: Usage Record Ready for Processing",
+                    "acceptance_criteria": {
+                        "Given": "A usage record has been successfully read from the Usage File (not end-of-file)",
+                        "When": "All three data elements have been captured: the Customer ID (WS-CURRENT-CUSTOMER-ID), the number of units consumed (WS-USAGE-UNITS), and the billing month (WS-BILLING-MONTH)",
+                        "Then": "The usage record is considered fully prepared and the billing process proceeds to the next step of locating the corresponding customer in the Customer Master file using the captured Customer ID"
+                    },
+                    "key_functionality_id": "read-usage-record"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Read Usage Record"
+        },
+        {
+            "id": "find-customer",
+            "title": "Find Customer",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([Start: Find Customer])\n    B[Reset Customer Search\\nSet Customer Found = No]\n    C[Position to Beginning\\nof Customer File]\n    D[Read Next Customer Record\\nfrom CUSTOMER.dat]\n    E{End of\\nCustomer File?}\n    F{Customer ID Matches\\nCurrent Usage Customer ID?}\n    G[Mark Customer as FOUND]\n    H([End: Return Customer\\nFound = Yes])\n    I([End: Return Customer\\nFound = No])\n\n    A --> B\n    B --> C\n    C --> D\n    D --> E\n    E -->|No - Record Available| F\n    F -->|Yes - Match Found| G\n    G --> H\n    F -->|No - No Match| D\n    E -->|Yes - No More Records| I",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00025",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Reset Customer Search State Before Each Lookup",
+                    "rule_description": "Before searching for a customer, the system must reset the customer search state to ensure no carry-over from a previous search affects the current lookup result.",
+                    "sub_graph_node_text": "Reset Customer Search\nSet Customer Found = No",
+                    "acceptance_criteria": {
+                        "Given": "A new usage record has been read and a customer lookup is about to begin",
+                        "When": "The Find Customer process is initiated for the current usage record's Customer ID",
+                        "Then": "The Customer Found indicator must be reset to 'No' (N) and the End-of-Customer-File indicator must be reset to 'No' (N), ensuring a clean search state before scanning the Customer Master file"
+                    },
+                    "key_functionality_id": "find-customer"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00026",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Reposition Customer File to Beginning for Each Search",
+                    "rule_description": "The Customer Master file must always be searched from the very beginning for each usage record, ensuring every customer record is eligible to be matched regardless of where the previous search ended.",
+                    "sub_graph_node_text": "Position to Beginning\nof Customer File",
+                    "acceptance_criteria": {
+                        "Given": "The Customer Found indicator has been reset to 'No' and a customer lookup is about to begin for the current Customer ID from the usage record",
+                        "When": "The Find Customer process positions to the start of the Customer Master file",
+                        "Then": "The Customer Master file is closed and immediately reopened so that the next read will start from the first record in the file, guaranteeing a full file scan from the beginning"
+                    },
+                    "key_functionality_id": "find-customer"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00027",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Read Customer Records Sequentially During Search",
+                    "rule_description": "The system reads customer records one at a time from the Customer Master file in sequential order to find a matching customer for the current usage record.",
+                    "sub_graph_node_text": "Read Next Customer Record\nfrom CUSTOMER.dat",
+                    "acceptance_criteria": {
+                        "Given": "The Customer Master file is open and positioned at the current read location, and neither a matching customer has been found nor the end of the file has been reached",
+                        "When": "The system reads the next available customer record from the Customer Master file",
+                        "Then": "The next customer record is retrieved and made available for Customer ID comparison; if no more records exist, the End-of-Customer-File indicator is set to 'True'"
+                    },
+                    "key_functionality_id": "find-customer"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00028",
+                    "rule_type": "Validation Rules",
+                    "rule_name": "Detect End of Customer File During Search",
+                    "rule_description": "When all customer records have been read without finding a match, the system must recognize that the customer does not exist in the Customer Master file and terminate the search.",
+                    "sub_graph_node_text": "End of\nCustomer File?",
+                    "acceptance_criteria": {
+                        "Given": "The system is sequentially reading through the Customer Master file searching for a matching Customer ID",
+                        "When": "The system attempts to read the next customer record and there are no more records remaining in the Customer Master file",
+                        "Then": "The End-of-Customer-File indicator is set to 'True', the search loop is terminated, and control returns to the calling process with Customer Found = 'No', indicating the customer does not exist in the Customer Master file"
+                    },
+                    "key_functionality_id": "find-customer"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00029",
+                    "rule_type": "Decision Rules",
+                    "rule_name": "Match Customer Record by Customer ID",
+                    "rule_description": "Each customer record read from the Customer Master file must be evaluated to determine whether its Customer ID matches the Customer ID from the current usage record being processed.",
+                    "sub_graph_node_text": "Customer ID Matches\nCurrent Usage Customer ID?",
+                    "acceptance_criteria": {
+                        "Given": "A customer record has been successfully read from the Customer Master file and the End-of-Customer-File indicator is 'No'",
+                        "When": "The Customer ID field (CUST-ID) from the current Customer Master record is compared against the Customer ID (WS-CURRENT-CUSTOMER-ID) extracted from the current usage record",
+                        "Then": "If the two Customer IDs are equal, the customer is considered matched and the Customer Found indicator is set to 'True'; if they are not equal, the system reads the next customer record and repeats the comparison"
+                    },
+                    "key_functionality_id": "find-customer"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00030",
+                    "rule_type": "Decision Rules",
+                    "rule_name": "Mark Customer as Found Upon Successful ID Match",
+                    "rule_description": "When a customer record in the Customer Master file has a Customer ID that matches the usage record's Customer ID, the system must flag the customer as found and stop further searching.",
+                    "sub_graph_node_text": "Mark Customer as FOUND",
+                    "acceptance_criteria": {
+                        "Given": "A customer record has been read from the Customer Master file and its Customer ID exactly matches the Customer ID from the current usage record",
+                        "When": "The Customer ID comparison confirms a match between CUST-ID and WS-CURRENT-CUSTOMER-ID",
+                        "Then": "The Customer Found indicator is set to 'True', the search loop is immediately terminated, and the matched customer's full record (including CUST-ID, CUST-NAME, CUST-STATUS, CUST-TYPE, CUST-TAX-RATE, CUST-PREV-BALANCE) is retained in memory and returned to the calling process for use in billing"
+                    },
+                    "key_functionality_id": "find-customer"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00031",
+                    "rule_type": "Action Rules",
+                    "rule_name": "Return Customer Found Result to Billing Process",
+                    "rule_description": "Upon successfully locating a matching customer record, the Find Customer process concludes and signals to the main billing process that the customer was found, enabling billing to proceed.",
+                    "sub_graph_node_text": "End: Return Customer\nFound = Yes",
+                    "acceptance_criteria": {
+                        "Given": "The Customer Found indicator has been set to 'True' after a successful Customer ID match in the Customer Master file",
+                        "When": "The Find Customer search loop terminates because the Customer Found condition is 'True'",
+                        "Then": "Control returns to the main billing process with Customer Found = 'Yes', and the full customer record data is available for subsequent status validation and bill calculation"
+                    },
+                    "key_functionality_id": "find-customer"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00032",
+                    "rule_type": "Action Rules",
+                    "rule_name": "Return Customer Not Found Result to Billing Process",
+                    "rule_description": "When the entire Customer Master file has been scanned without finding a matching Customer ID, the Find Customer process concludes and signals to the main billing process that the customer does not exist, preventing invoice generation.",
+                    "sub_graph_node_text": "End: Return Customer\nFound = No",
+                    "acceptance_criteria": {
+                        "Given": "The system has read through all records in the Customer Master file without finding a Customer ID that matches the current usage record's Customer ID",
+                        "When": "The End-of-Customer-File indicator is set to 'True' and the search loop terminates",
+                        "Then": "Control returns to the main billing process with Customer Found = 'No', which will cause the main process to display the error message 'ERROR: CUSTOMER NOT FOUND - [Customer ID]' and skip bill calculation and invoice generation for this usage record"
+                    },
+                    "key_functionality_id": "find-customer"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Find Customer"
+        },
+        {
+            "id": "validate-customer-status",
+            "title": "Validate Customer Status",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([Start: Validate Customer Status])\n    B{Was Customer\\nFound?}\n    C{Customer Status\\n= ACTIVE?}\n    D[Proceed to\\nCalculate Bill & Generate Invoice]\n    E[Log Error:\\nCustomer Is Not Active\\nCustomer ID is Logged]\n    F[Log Error:\\nCustomer Not Found\\nCustomer ID is Logged]\n    G[Skip Billing\\nfor This Usage Record]\n    H([End: Validate Customer Status])\n\n    A --> B\n    B -->|Yes - Customer Found| C\n    B -->|No - Customer Not Found| F\n    C -->|Yes - Status is ACTIVE| D\n    C -->|No - Status is Inactive| E\n    E --> G\n    F --> G\n    D --> H\n    G --> H",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00033",
+                    "rule_type": "Validation Rules",
+                    "rule_name": "Customer Existence Validation Before Billing",
+                    "rule_description": "Before any billing activity is performed, the system must verify that the Customer ID from the usage record matches an existing customer in the Customer Master. If no matching customer is found, billing is skipped and an error is logged with the unmatched Customer ID.",
+                    "sub_graph_node_text": "Was Customer Found?",
+                    "acceptance_criteria": {
+                        "Given": "A usage record has been read with a specific Customer ID, and a search of the Customer Master file has been completed for that Customer ID",
+                        "When": "No matching customer record is found in the Customer Master file for the given Customer ID",
+                        "Then": "The system must: (1) Log an error message 'ERROR: CUSTOMER NOT FOUND - [Customer ID]' identifying the unrecognized Customer ID, (2) Skip all billing processing (no bill calculation, no invoice generation) for this usage record, and (3) Proceed to the next usage record"
+                    },
+                    "key_functionality_id": "validate-customer-status"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00034",
+                    "rule_type": "Validation Rules",
+                    "rule_name": "Active Customer Status Validation Before Billing",
+                    "rule_description": "Even when a customer is found in the Customer Master, billing may only proceed if that customer holds an ACTIVE status. Customers with any status other than ACTIVE are ineligible for bill generation, and an error is logged with their Customer ID.",
+                    "sub_graph_node_text": "Customer Status = ACTIVE?",
+                    "acceptance_criteria": {
+                        "Given": "A usage record has been read with a specific Customer ID, and the customer has been successfully located in the Customer Master file",
+                        "When": "The customer's status in the Customer Master is NOT equal to 'ACTIVE' (i.e., the customer is inactive or holds any other non-active status)",
+                        "Then": "The system must: (1) Log an error message 'ERROR: CUSTOMER IS NOT ACTIVE - [Customer ID]' identifying the inactive customer, (2) Skip all billing processing (no bill calculation, no invoice generation) for this usage record, and (3) Proceed to the next usage record"
+                    },
+                    "key_functionality_id": "validate-customer-status"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00035",
+                    "rule_type": "Action Rules",
+                    "rule_name": "Proceed to Billing for Active Customers",
+                    "rule_description": "When a customer is both found in the Customer Master and confirmed to have an ACTIVE status, the system is authorized to proceed with full billing processing \u2014 calculating the bill and generating the invoice.",
+                    "sub_graph_node_text": "Proceed to Calculate Bill & Generate Invoice",
+                    "acceptance_criteria": {
+                        "Given": "A usage record has been read with a specific Customer ID, the customer has been successfully located in the Customer Master file, and the customer's status is 'ACTIVE'",
+                        "When": "Both the customer existence check and the active status check pass successfully",
+                        "Then": "The system must proceed to: (1) Execute the bill calculation process for the customer's usage record, and (2) Execute the invoice generation process to produce and write the invoice output"
+                    },
+                    "key_functionality_id": "validate-customer-status"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00036",
+                    "rule_type": "Policy Rules",
+                    "rule_name": "Skip Billing and Log Error for Not-Found Customer",
+                    "rule_description": "When a Customer ID from a usage record cannot be matched to any record in the Customer Master file, the system logs a descriptive error message that includes the unmatched Customer ID, ensuring the issue is traceable, and skips billing for that record.",
+                    "sub_graph_node_text": "Log Error: Customer Not Found\nCustomer ID is Logged",
+                    "acceptance_criteria": {
+                        "Given": "A usage record exists with a Customer ID that was searched in the Customer Master file",
+                        "When": "The Customer ID from the usage record does not match any Customer ID in the Customer Master file",
+                        "Then": "The system must display the error message 'ERROR: CUSTOMER NOT FOUND - [Customer ID]' where [Customer ID] is the exact Customer ID from the usage record that could not be matched, and no bill calculation or invoice generation is performed for this usage record"
+                    },
+                    "key_functionality_id": "validate-customer-status"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00037",
+                    "rule_type": "Policy Rules",
+                    "rule_name": "Skip Billing and Log Error for Inactive Customer",
+                    "rule_description": "When a customer is found in the Customer Master but their status is not ACTIVE, the system logs a descriptive error message that includes the Customer ID of the inactive customer, ensuring the issue is traceable, and skips billing for that record.",
+                    "sub_graph_node_text": "Log Error: Customer Is Not Active\nCustomer ID is Logged",
+                    "acceptance_criteria": {
+                        "Given": "A usage record exists with a Customer ID that was found in the Customer Master file",
+                        "When": "The customer's status field in the Customer Master record is not equal to 'ACTIVE'",
+                        "Then": "The system must display the error message 'ERROR: CUSTOMER IS NOT ACTIVE - [Customer ID]' where [Customer ID] is the exact Customer ID of the inactive customer, and no bill calculation or invoice generation is performed for this usage record"
+                    },
+                    "key_functionality_id": "validate-customer-status"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Validate Customer Status"
+        },
+        {
+            "id": "determine-usage-rate",
+            "title": "Determine Usage Rate",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([Start: Determine Usage Rate])\n    B{Units Consumed\\n\u2264 500?}\n    C[Assign Rate = $0.50 per unit\\nTier 1 - Low Usage]\n    D{Units Consumed\\n\u2264 1000?}\n    E[Assign Rate = $0.45 per unit\\nTier 2 - Medium Usage]\n    F[Assign Rate = $0.40 per unit\\nTier 3 - High Usage\\nMore than 1000 units]\n    G([End: Rate Assigned\\nProceed to Calculate Usage Charge])\n\n    A --> B\n    B -->|Yes - Up to 500 Units| C\n    B -->|No| D\n    D -->|Yes - 501 to 1000 Units| E\n    D -->|No - More than 1000 Units| F\n    C --> G\n    E --> G\n    F --> G",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00038",
+                    "rule_type": "Decision Rules",
+                    "rule_name": "Assign Tier 1 Low Usage Rate for Up to 500 Units",
+                    "rule_description": "When a customer's usage units consumed in the billing period are 500 or fewer, the system assigns the Tier 1 low-usage per-unit billing rate of $0.50. This rate will be used to calculate the total usage charge for the invoice.",
+                    "sub_graph_node_text": "Assign Rate = $0.50 per unit\nTier 1 - Low Usage",
+                    "acceptance_criteria": {
+                        "Given": "A customer usage record has been read with a valid Units Consumed value, and the billing rate calculation process has been initiated for that customer",
+                        "When": "The Units Consumed in the billing period is less than or equal to 500 units",
+                        "Then": "The per-unit billing rate is set to $0.50 (Tier 1 - Low Usage), and the system proceeds to calculate the Usage Charge using this rate"
+                    },
+                    "key_functionality_id": "determine-usage-rate"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00039",
+                    "rule_type": "Decision Rules",
+                    "rule_name": "Assign Tier 2 Medium Usage Rate for 501 to 1000 Units",
+                    "rule_description": "When a customer's usage units consumed in the billing period are between 501 and 1000 (inclusive), the system assigns the Tier 2 medium-usage per-unit billing rate of $0.45. This rate will be used to calculate the total usage charge for the invoice.",
+                    "sub_graph_node_text": "Assign Rate = $0.45 per unit\nTier 2 - Medium Usage",
+                    "acceptance_criteria": {
+                        "Given": "A customer usage record has been read with a valid Units Consumed value, and the billing rate calculation process has been initiated for that customer",
+                        "When": "The Units Consumed in the billing period is greater than 500 units AND less than or equal to 1000 units",
+                        "Then": "The per-unit billing rate is set to $0.45 (Tier 2 - Medium Usage), and the system proceeds to calculate the Usage Charge using this rate"
+                    },
+                    "key_functionality_id": "determine-usage-rate"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00040",
+                    "rule_type": "Decision Rules",
+                    "rule_name": "Assign Tier 3 High Usage Rate for More Than 1000 Units",
+                    "rule_description": "When a customer's usage units consumed in the billing period exceed 1000 units, the system assigns the Tier 3 high-usage per-unit billing rate of $0.40. This is the lowest per-unit rate and rewards high-volume consumption. This rate will be used to calculate the total usage charge for the invoice.",
+                    "sub_graph_node_text": "Assign Rate = $0.40 per unit\nTier 3 - High Usage\nMore than 1000 units",
+                    "acceptance_criteria": {
+                        "Given": "A customer usage record has been read with a valid Units Consumed value, and the billing rate calculation process has been initiated for that customer",
+                        "When": "The Units Consumed in the billing period is greater than 1000 units",
+                        "Then": "The per-unit billing rate is set to $0.40 (Tier 3 - High Usage), and the system proceeds to calculate the Usage Charge using this rate"
+                    },
+                    "key_functionality_id": "determine-usage-rate"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00041",
+                    "rule_type": "Computation Rules",
+                    "rule_name": "Calculate Usage Charge from Units and Assigned Rate",
+                    "rule_description": "Once the appropriate tiered per-unit billing rate has been determined based on the customer's units consumed, the system computes the total Usage Charge by multiplying the total units consumed by the assigned per-unit rate. This Usage Charge forms the base amount before any discounts or taxes are applied.",
+                    "sub_graph_node_text": "End: Rate Assigned\nProceed to Calculate Usage Charge",
+                    "acceptance_criteria": {
+                        "Given": "The Units Consumed for the billing period is known and a per-unit billing rate has been assigned based on the applicable usage tier (Tier 1 at $0.50, Tier 2 at $0.45, or Tier 3 at $0.40)",
+                        "When": "The tiered rate assignment is complete and the system proceeds to compute the Usage Charge",
+                        "Then": "The Usage Charge is calculated as Units Consumed multiplied by the assigned per-unit Rate, and this Usage Charge value is carried forward as the base amount for subsequent discount and tax calculations"
+                    },
+                    "key_functionality_id": "determine-usage-rate"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Determine Usage Rate"
+        },
+        {
+            "id": "calculate-usage-charge",
+            "title": "Calculate Usage Charge",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([Start: Calculate Usage Charge])\n    B[Retrieve Total Units Consumed\\nfrom Usage Record]\n    C[Retrieve Applicable Per-Unit Rate\\nas Determined by Usage Tier]\n    D[Compute Gross Usage Charge\\nTotal Units \u00d7 Per-Unit Rate]\n    E[Store Gross Usage Charge\\nfor Discount Processing]\n    F([End: Gross Usage Charge Calculated])\n\n    A --> B\n    B --> C\n    C --> D\n    D --> E\n    E --> F",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00042",
+                    "rule_type": "Computation Rules",
+                    "rule_name": "Compute Gross Usage Charge from Units and Rate",
+                    "rule_description": "The gross usage charge is calculated by multiplying the total units consumed in the billing period by the applicable per-unit rate that was determined based on the usage tier. The resulting gross usage charge is stored for subsequent discount processing.",
+                    "sub_graph_node_text": "Compute Gross Usage Charge\nTotal Units \u00d7 Per-Unit Rate",
+                    "acceptance_criteria": {
+                        "Given": "A usage record has been read containing the total units consumed for the billing period, and the applicable per-unit rate has already been determined based on the usage tier (either $0.50 for up to 500 units, $0.45 for 501\u20131000 units, or $0.40 for over 1000 units)",
+                        "When": "The billing system computes the gross usage charge by multiplying the total units consumed (WS-USAGE-UNITS) by the applicable per-unit rate (WS-RATE)",
+                        "Then": "The gross usage charge (WS-USAGE-CHARGE) is set to the product of total units consumed multiplied by the per-unit rate, and this gross usage charge value is retained and made available for all subsequent discount and tax calculations"
+                    },
+                    "key_functionality_id": "calculate-usage-charge"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00043",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Retrieve Total Units Consumed from Usage Record",
+                    "rule_description": "Before computing the gross usage charge, the total units consumed by the customer during the billing period must be retrieved from the usage record that was read from the Usage File.",
+                    "sub_graph_node_text": "Retrieve Total Units Consumed\nfrom Usage Record",
+                    "acceptance_criteria": {
+                        "Given": "A usage record has been successfully read from the Usage File for a customer in a given billing month",
+                        "When": "The billing system prepares to calculate the bill for that customer",
+                        "Then": "The total units consumed (USAGE-UNITS) from the usage record are captured and stored as the working value (WS-USAGE-UNITS) to be used in the gross usage charge computation"
+                    },
+                    "key_functionality_id": "calculate-usage-charge"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00044",
+                    "rule_type": "Decision Rules",
+                    "rule_name": "Retrieve Applicable Per-Unit Rate Based on Usage Tier",
+                    "rule_description": "The per-unit rate to be applied for billing is determined by evaluating which usage tier the customer's total units consumed falls into. Three tiers exist with decreasing rates for higher consumption volumes.",
+                    "sub_graph_node_text": "Retrieve Applicable Per-Unit Rate\nas Determined by Usage Tier",
+                    "acceptance_criteria": {
+                        "Given": "The total units consumed (WS-USAGE-UNITS) for the billing period have been retrieved from the usage record",
+                        "When": "The billing system evaluates the total units consumed against the defined usage tier thresholds",
+                        "Then": "The per-unit rate (WS-RATE) is set as follows: if total units consumed are 500 or fewer, the rate is $0.50 per unit; if total units consumed are between 501 and 1000 inclusive, the rate is $0.45 per unit; if total units consumed exceed 1000, the rate is $0.40 per unit \u2014 and this rate is retained for use in the gross usage charge computation"
+                    },
+                    "key_functionality_id": "calculate-usage-charge"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00045",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Store Gross Usage Charge for Downstream Discount Processing",
+                    "rule_description": "Once the gross usage charge has been computed, it must be preserved as the base amount from which volume discounts, premium customer discounts, minimum charge comparisons, and tax calculations will subsequently be derived.",
+                    "sub_graph_node_text": "Store Gross Usage Charge\nfor Discount Processing",
+                    "acceptance_criteria": {
+                        "Given": "The gross usage charge has been successfully computed as the product of total units consumed and the applicable per-unit rate",
+                        "When": "The billing system completes the gross usage charge computation step",
+                        "Then": "The gross usage charge value (WS-USAGE-CHARGE) is retained in working storage and is available as the input base amount for all subsequent billing steps including volume discount evaluation, premium discount evaluation, minimum charge floor check, tax computation, and final amount calculation"
+                    },
+                    "key_functionality_id": "calculate-usage-charge"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Calculate Usage Charge"
+        },
+        {
+            "id": "apply-volume-discount",
+            "title": "Apply Volume Discount",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([Start: Apply Volume Discount])\n    B{Is Units Consumed\\ngreater than\\n1000 Units?}\n    C[Calculate Volume Discount\\nDiscount = Usage Charge \u00d7 10%]\n    D[No Volume Discount Applied\\nDiscount Remains Zero]\n    E([End: Proceed to\\nPremium Customer Discount Check])\n\n    A --> B\n    B -->|Yes - Exceeds Volume Threshold| C\n    B -->|No - Within Volume Threshold| D\n    C --> E\n    D --> E",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00046",
+                    "rule_type": "Decision Rules",
+                    "rule_name": "Volume Discount Eligibility Check Based on Units Consumed",
+                    "rule_description": "Determines whether a customer qualifies for a volume discount by checking if their usage units consumed in the billing period exceed the volume threshold of 1000 units.",
+                    "sub_graph_node_text": "Is Units Consumed greater than 1000 Units?",
+                    "acceptance_criteria": {
+                        "Given": "A customer's bill is being calculated and the Usage Charge has already been determined based on the tiered rate pricing",
+                        "When": "The system evaluates whether the customer's Units Consumed is greater than the Volume Threshold of 1000 units",
+                        "Then": "If Units Consumed is greater than 1000 units, the customer is eligible for a Volume Discount and the system proceeds to calculate the discount amount; If Units Consumed is 1000 units or less, no Volume Discount is applied and the Discount amount remains zero, and the system proceeds to the Premium Customer Discount check"
+                    },
+                    "key_functionality_id": "apply-volume-discount"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00047",
+                    "rule_type": "Computation Rules",
+                    "rule_name": "Volume Discount Amount Calculation at 10% of Usage Charge",
+                    "rule_description": "Calculates the Volume Discount amount as 10% of the Usage Charge for customers whose Units Consumed exceeds the volume threshold of 1000 units.",
+                    "sub_graph_node_text": "Calculate Volume Discount\nDiscount = Usage Charge \u00d7 10%",
+                    "acceptance_criteria": {
+                        "Given": "A customer's Units Consumed is greater than 1000 units and the customer has been determined eligible for a Volume Discount, and the Usage Charge has been computed based on the applicable tiered unit rate",
+                        "When": "The system calculates the Volume Discount",
+                        "Then": "The Volume Discount amount is set to 10% of the Usage Charge (Volume Discount = Usage Charge \u00d7 10%), and this Discount value is carried forward to the Premium Customer Discount check"
+                    },
+                    "key_functionality_id": "apply-volume-discount"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Apply Volume Discount"
+        },
+        {
+            "id": "apply-premium-customer-discount",
+            "title": "Apply Premium Customer Discount",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([Start: Apply Premium Customer Discount])\n    B{Is Customer Type\\n= PREMIUM?}\n    C[Calculate Premium Discount\\n5% of Usage Charge]\n    D[Add Premium Discount\\nto Existing Discount\\nNew Discount = Existing Discount + 5% of Usage Charge]\n    E([End: Proceed to Apply\\nMinimum Charge Rule])\n    F([End: Proceed to Apply\\nMinimum Charge Rule])\n\n    A --> B\n    B -->|Yes - Premium Customer| C\n    C --> D\n    D --> E\n    B -->|No - Standard Customer\\nNo Additional Discount Applied| F",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00048",
+                    "rule_type": "Decision Rules",
+                    "rule_name": "Identify Premium Customer for Additional Discount Eligibility",
+                    "rule_description": "Determines whether a customer qualifies for the additional premium discount by checking if their customer type is classified as PREMIUM in the Customer Master record.",
+                    "sub_graph_node_text": "Is Customer Type = PREMIUM?",
+                    "acceptance_criteria": {
+                        "Given": "A customer record has been retrieved from the Customer Master file and the customer has been verified as ACTIVE, and the usage charge has already been calculated for the current billing period",
+                        "When": "The system evaluates the Customer Type field (CUST-TYPE) from the Customer Master record",
+                        "Then": "If the Customer Type equals 'PREMIUM', the customer is eligible for an additional premium discount and the system proceeds to calculate the premium discount amount; if the Customer Type is any value other than 'PREMIUM' (i.e., standard customer), no additional premium discount is applied and the system proceeds directly to the Minimum Charge Rule evaluation with the discount amount unchanged"
+                    },
+                    "key_functionality_id": "apply-premium-customer-discount"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00049",
+                    "rule_type": "Computation Rules",
+                    "rule_name": "Calculate and Accumulate Premium Customer Discount",
+                    "rule_description": "For customers classified as PREMIUM, calculates an additional discount based on the Premium Discount Rate applied to the Usage Charge, and adds this premium discount on top of any volume discount that may have already been applied, resulting in a cumulative total discount.",
+                    "sub_graph_node_text": "Calculate Premium Discount\n5% of Usage Charge\nAdd Premium Discount to Existing Discount\nNew Discount = Existing Discount + 5% of Usage Charge",
+                    "acceptance_criteria": {
+                        "Given": "The customer type is confirmed as 'PREMIUM', the Usage Charge (WS-USAGE-CHARGE) has been computed based on usage units and the applicable tiered rate, and the existing discount amount (WS-DISCOUNT) may already contain a volume discount value (which could be zero if the volume threshold was not exceeded)",
+                        "When": "The system calculates the premium discount by multiplying the Usage Charge by the Premium Discount Rate (WS-PREMIUM-DISCOUNT-RATE), and adds the resulting premium discount amount to the existing discount",
+                        "Then": "The total discount (WS-DISCOUNT) is updated to equal the sum of the prior existing discount plus the premium discount amount (Usage Charge \u00d7 Premium Discount Rate), ensuring that a PREMIUM customer who also exceeded the volume threshold receives both the volume discount and the premium discount cumulatively; the updated total discount is then carried forward to the Minimum Charge Rule evaluation"
+                    },
+                    "key_functionality_id": "apply-premium-customer-discount"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Apply Premium Customer Discount"
+        },
+        {
+            "id": "apply-minimum-charge-rule",
+            "title": "Apply Minimum Charge Rule",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([Start: Apply Minimum Charge Rule])\n    B[Calculate Net Charge\\nUsage Charge minus Total Discounts]\n    C{Is Net Charge\\nless than\\nMinimum Charge of $25.00?}\n    D[Set Taxable Amount\\nto Minimum Charge\\n$25.00]\n    E[Set Taxable Amount\\nto Net Charge\\nUsage Charge minus Discounts]\n    F([End: Taxable Amount Determined])\n\n    A --> B\n    B --> C\n    C -->|Yes - Below Minimum| D\n    C -->|No - At or Above Minimum| E\n    D --> F\n    E --> F",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00050",
+                    "rule_type": "Decision Rules",
+                    "rule_name": "Apply Minimum Charge Floor When Net Charge Falls Below $25.00",
+                    "rule_description": "When the usage charge after all applicable discounts (volume and/or premium) is less than the system minimum charge of $25.00, the taxable amount must be set to the minimum charge of $25.00 to ensure the customer is always billed at least the minimum amount.",
+                    "sub_graph_node_text": "Is Net Charge less than Minimum Charge of $25.00?",
+                    "acceptance_criteria": {
+                        "Given": "A customer's usage charge has been calculated and all applicable discounts (volume discount and/or premium discount) have been applied, resulting in a net charge (Usage Charge minus Total Discounts) that is less than the minimum charge of $25.00",
+                        "When": "The billing system evaluates whether the net charge (Usage Charge minus Total Discounts) is less than the minimum charge of $25.00",
+                        "Then": "The taxable amount is set to the minimum charge of $25.00, overriding the discounted net charge, so that the customer is billed no less than $25.00 before tax and previous balance are applied"
+                    },
+                    "key_functionality_id": "apply-minimum-charge-rule"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00051",
+                    "rule_type": "Computation Rules",
+                    "rule_name": "Use Net Charge as Taxable Amount When At or Above Minimum Charge of $25.00",
+                    "rule_description": "When the usage charge after all applicable discounts (volume and/or premium) is equal to or greater than the minimum charge of $25.00, the taxable amount is set to the actual discounted net charge, reflecting the true billable amount before tax.",
+                    "sub_graph_node_text": "Set Taxable Amount to Net Charge - Usage Charge minus Discounts",
+                    "acceptance_criteria": {
+                        "Given": "A customer's usage charge has been calculated and all applicable discounts (volume discount and/or premium discount) have been applied, resulting in a net charge (Usage Charge minus Total Discounts) that is equal to or greater than the minimum charge of $25.00",
+                        "When": "The billing system evaluates whether the net charge (Usage Charge minus Total Discounts) is less than the minimum charge of $25.00 and determines it is not",
+                        "Then": "The taxable amount is set to the net charge, calculated as Usage Charge minus Total Discounts, and this amount is used as the base for tax calculation"
+                    },
+                    "key_functionality_id": "apply-minimum-charge-rule"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00052",
+                    "rule_type": "Computation Rules",
+                    "rule_name": "Calculate Net Charge as Basis for Minimum Charge Comparison",
+                    "rule_description": "Before applying the minimum charge rule, the net charge must be derived by subtracting all accumulated discounts (volume discount and premium discount, if applicable) from the gross usage charge. This net charge is the value compared against the minimum charge threshold of $25.00.",
+                    "sub_graph_node_text": "Calculate Net Charge - Usage Charge minus Total Discounts",
+                    "acceptance_criteria": {
+                        "Given": "A customer's gross usage charge has been computed based on usage units and the applicable tiered rate, and all eligible discounts (volume discount and/or premium customer discount) have been accumulated into the total discount amount",
+                        "When": "The billing system prepares to determine the taxable amount by evaluating the minimum charge rule",
+                        "Then": "The net charge is derived as Usage Charge minus Total Discounts, and this net charge value is used as the input to the minimum charge comparison to determine whether the minimum charge floor of $25.00 should be applied"
+                    },
+                    "key_functionality_id": "apply-minimum-charge-rule"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Apply Minimum Charge Rule"
+        },
+        {
+            "id": "calculate-tax",
+            "title": "Calculate Tax",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([Start: Calculate Tax])\n    B[Retrieve Taxable Amount\\nAmount after Discounts & Minimum Charge Rule]\n    C[Retrieve Customer's Individual Tax Rate\\nfrom Customer Record]\n    D[Compute Tax Amount\\nTax = Taxable Amount \u00d7 Customer Tax Rate]\n    E([End: Tax Amount Determined])\n\n    A --> B\n    B --> C\n    C --> D\n    D --> E",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00053",
+                    "rule_type": "Computation Rules",
+                    "rule_name": "Compute Tax Amount Using Customer-Specific Tax Rate",
+                    "rule_description": "The tax amount for a customer's bill is calculated by multiplying the taxable amount (the amount after all discounts and minimum charge rules have been applied) by the customer's individual tax rate retrieved from the Customer Master Record.",
+                    "sub_graph_node_text": "Compute Tax Amount\nTax = Taxable Amount \u00d7 Customer Tax Rate",
+                    "acceptance_criteria": {
+                        "Given": "A customer's taxable amount has been determined (after applying usage charges, discounts, and the minimum charge floor rule), AND the customer's individual tax rate is available from the Customer Master Record",
+                        "When": "The billing system calculates the tax for the current billing period",
+                        "Then": "The tax amount must be computed as: Tax Amount = Taxable Amount \u00d7 Customer's Individual Tax Rate, AND the resulting Tax Amount is stored for inclusion in the final bill amount"
+                    },
+                    "key_functionality_id": "calculate-tax"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00054",
+                    "rule_type": "Definitional Rules",
+                    "rule_name": "Customer Tax Rate is Individually Assigned Per Customer",
+                    "rule_description": "Each customer has their own unique tax rate stored in their Customer Master Record. The tax rate used for billing is not a universal or system-wide rate \u2014 it is specific to each individual customer and must be retrieved from that customer's record before tax can be calculated.",
+                    "sub_graph_node_text": "Retrieve Customer's Individual Tax Rate\nfrom Customer Record",
+                    "acceptance_criteria": {
+                        "Given": "A usage record is being processed for a specific customer who has been found in the Customer Master File and whose status is ACTIVE",
+                        "When": "The billing system prepares to calculate the tax amount for the customer's bill",
+                        "Then": "The tax rate applied must be the customer's own individual tax rate (CUST-TAX-RATE) as stored in that customer's record in the Customer Master File, NOT a shared or system-level tax rate"
+                    },
+                    "key_functionality_id": "calculate-tax"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00055",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Taxable Amount Feeds Into Tax Calculation",
+                    "rule_description": "The base amount used for tax calculation is the taxable amount, which is the net charge after all applicable discounts have been subtracted from the usage charge, and after the minimum charge floor rule has been enforced. This ensures tax is never calculated on a raw usage charge but always on the final adjusted billable amount.",
+                    "sub_graph_node_text": "Retrieve Taxable Amount\nAmount after Discounts & Minimum Charge Rule",
+                    "acceptance_criteria": {
+                        "Given": "The usage charge has been calculated based on the customer's units consumed and the applicable tiered rate, AND all applicable discounts (volume discount and/or premium customer discount) have been applied, AND the minimum charge floor rule has been evaluated",
+                        "When": "The taxable amount is retrieved as the input for tax computation",
+                        "Then": "The taxable amount used as the basis for tax calculation must be either: (a) the result of Usage Charge minus Total Discount, if that result is greater than or equal to the Minimum Charge, OR (b) the Minimum Charge value, if Usage Charge minus Total Discount falls below the Minimum Charge \u2014 and this taxable amount is then multiplied by the customer's individual tax rate to produce the Tax Amount"
+                    },
+                    "key_functionality_id": "calculate-tax"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Calculate Tax"
+        },
+        {
+            "id": "calculate-final-invoice-amount",
+            "title": "Calculate Final Invoice Amount",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([Start: Calculate Final Invoice Amount])\n    B[Retrieve Taxable Amount\\nAmount after discounts and minimum charge rule]\n    C[Retrieve Calculated Tax Amount\\nTaxable Amount \u00d7 Customer Tax Rate]\n    D[Retrieve Customer Previous Outstanding Balance\\nFrom Customer Record]\n    E[Sum All Components\\nTaxable Amount + Tax Amount + Previous Balance]\n    F[/Total Amount Due\\nFinal Invoice Amount/]\n    G([End: Final Invoice Amount Determined])\n\n    A --> B\n    B --> C\n    C --> D\n    D --> E\n    E --> F\n    F --> G",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00056",
+                    "rule_type": "Definitional Rules",
+                    "rule_name": "Retrieve Taxable Amount as Input to Final Invoice Calculation",
+                    "rule_description": "The taxable amount, which has already been determined after applying all applicable discounts and enforcing the minimum charge rule, is used as the primary base component when calculating the final invoice amount.",
+                    "sub_graph_node_text": "Retrieve Taxable Amount\nAmount after discounts and minimum charge rule",
+                    "acceptance_criteria": {
+                        "Given": "A billing calculation is in progress for an active customer and the taxable amount has already been determined (either as Usage Charge minus Total Discount, or as the Minimum Charge if the net charge fell below the minimum threshold)",
+                        "When": "The system is ready to compute the final total amount due on the invoice",
+                        "Then": "The system must use the previously computed Taxable Amount (WS-TAXABLE-AMOUNT) as the first component in the final invoice amount calculation, ensuring it reflects all prior discount and minimum charge adjustments"
+                    },
+                    "key_functionality_id": "calculate-final-invoice-amount"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00057",
+                    "rule_type": "Definitional Rules",
+                    "rule_name": "Retrieve Calculated Tax Amount as Input to Final Invoice Calculation",
+                    "rule_description": "The tax amount, which has been individually calculated for the customer using their specific tax rate applied to the taxable amount, is used as the second component when computing the final invoice total.",
+                    "sub_graph_node_text": "Retrieve Calculated Tax Amount\nTaxable Amount \u00d7 Customer Tax Rate",
+                    "acceptance_criteria": {
+                        "Given": "A billing calculation is in progress for an active customer and the tax amount has already been computed as Taxable Amount multiplied by the customer's individual tax rate (CUST-TAX-RATE) sourced from the Customer Master record",
+                        "When": "The system is ready to compute the final total amount due on the invoice",
+                        "Then": "The system must use the previously computed Tax Amount (WS-TAX) as the second additive component in the final invoice amount calculation, ensuring the customer-specific tax rate has been applied"
+                    },
+                    "key_functionality_id": "calculate-final-invoice-amount"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00058",
+                    "rule_type": "Definitional Rules",
+                    "rule_name": "Retrieve Customer Previous Outstanding Balance from Customer Record",
+                    "rule_description": "The customer's previous outstanding balance, as stored in the Customer Master record, is carried forward and included in the current invoice total to ensure any unpaid prior amounts are collected in the current billing cycle.",
+                    "sub_graph_node_text": "Retrieve Customer Previous Outstanding Balance\nFrom Customer Record",
+                    "acceptance_criteria": {
+                        "Given": "A billing calculation is in progress for an active customer and the Customer Master record for that customer has been located and loaded, containing the field CUST-PREV-BALANCE representing any outstanding balance from prior billing periods",
+                        "When": "The system is ready to compute the final total amount due on the invoice",
+                        "Then": "The system must retrieve the Previous Outstanding Balance (CUST-PREV-BALANCE) directly from the Customer Master record and include it as the third additive component in the final invoice amount calculation"
+                    },
+                    "key_functionality_id": "calculate-final-invoice-amount"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00059",
+                    "rule_type": "Computation Rules",
+                    "rule_name": "Compute Final Invoice Amount by Summing All Billing Components",
+                    "rule_description": "The final total amount due on the customer's invoice is calculated by summing three components: the taxable amount (after discounts and minimum charge), the tax amount (based on the customer's tax rate), and the customer's previous outstanding balance. This produces the definitive amount the customer owes for the current billing period.",
+                    "sub_graph_node_text": "Sum All Components\nTaxable Amount + Tax Amount + Previous Balance",
+                    "acceptance_criteria": {
+                        "Given": "An active customer's billing calculation has been completed, producing: (1) a Taxable Amount (WS-TAXABLE-AMOUNT) after all discounts and minimum charge rules have been applied, (2) a Tax Amount (WS-TAX) computed as Taxable Amount multiplied by the customer's individual tax rate from the Customer Master record, and (3) a Previous Outstanding Balance (CUST-PREV-BALANCE) retrieved from the Customer Master record",
+                        "When": "The system computes the final invoice amount",
+                        "Then": "The system must calculate the Final Invoice Amount (WS-FINAL-AMOUNT) using the formula: Final Amount = Taxable Amount + Tax Amount + Previous Outstanding Balance, and this computed value must be stored as the total amount due to be included on the generated invoice"
+                    },
+                    "key_functionality_id": "calculate-final-invoice-amount"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Calculate Final Invoice Amount"
+        },
+        {
+            "id": "generate-invoice-number",
+            "title": "Generate Invoice Number",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([Start: Generate Invoice Number])\n    B[Clear Invoice Number Field]\n    C[Take Billing Month\\nfrom Usage Record]\n    D[Take Customer ID\\nfrom Customer Record]\n    E[Combine: Billing Month + '-' + Customer ID]\n    F[/Invoice Number Created\\ne.g. 2024-01 - CUST001/]\n    G([End: Invoice Number Ready])\n\n    A --> B\n    B --> C\n    C --> D\n    D --> E\n    E --> F\n    F --> G",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00060",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Clear Invoice Number Before Construction",
+                    "rule_description": "Before generating a new invoice number, the invoice number field must be cleared of any previously held value to ensure no residual data contaminates the new invoice number.",
+                    "sub_graph_node_text": "Clear Invoice Number Field",
+                    "acceptance_criteria": {
+                        "Given": "The Generate Invoice process has been triggered for a customer's usage record",
+                        "When": "The system begins constructing a new invoice number",
+                        "Then": "The Invoice Number field must be reset to blank/empty spaces before any new value is assigned, ensuring no carry-over data from a previously processed invoice exists in the field"
+                    },
+                    "key_functionality_id": "generate-invoice-number"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00061",
+                    "rule_type": "Definitional Rules",
+                    "rule_name": "Invoice Number Source - Billing Month from Usage Record",
+                    "rule_description": "The billing month used in the invoice number must be sourced directly from the current usage record being processed, ensuring the invoice number reflects the correct billing period.",
+                    "sub_graph_node_text": "Take Billing Month from Usage Record",
+                    "acceptance_criteria": {
+                        "Given": "A usage record has been read and is currently being processed",
+                        "When": "The system constructs the invoice number",
+                        "Then": "The Billing Month component of the invoice number must be taken from the Billing Month field (WS-BILLING-MONTH) of the current usage record, which was captured when the usage record was read"
+                    },
+                    "key_functionality_id": "generate-invoice-number"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00062",
+                    "rule_type": "Definitional Rules",
+                    "rule_name": "Invoice Number Source - Customer ID from Customer Record",
+                    "rule_description": "The customer identifier used in the invoice number must be sourced from the matched Customer Master record, ensuring the invoice number is tied to the correct customer account.",
+                    "sub_graph_node_text": "Take Customer ID from Customer Record",
+                    "acceptance_criteria": {
+                        "Given": "A matching customer record has been found in the Customer Master file for the current usage record",
+                        "When": "The system constructs the invoice number",
+                        "Then": "The Customer ID component of the invoice number must be taken from the Customer ID field (CUST-ID) of the matched Customer Master record"
+                    },
+                    "key_functionality_id": "generate-invoice-number"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00063",
+                    "rule_type": "Computation Rules",
+                    "rule_name": "Invoice Number Construction by Combining Billing Month and Customer ID",
+                    "rule_description": "A unique invoice number is constructed by concatenating the billing month, a hyphen separator, and the customer ID. This ensures each invoice can be uniquely identified by its billing period and customer.",
+                    "sub_graph_node_text": "Combine: Billing Month + '-' + Customer ID",
+                    "acceptance_criteria": {
+                        "Given": "The Billing Month has been taken from the current usage record and the Customer ID has been taken from the matched Customer Master record",
+                        "When": "The system generates the invoice number",
+                        "Then": "The Invoice Number must be formed by concatenating: Billing Month value + literal hyphen character '-' + Customer ID value, in that exact order, with no additional separators or spaces between components (e.g., '2024-01-CUST001')"
+                    },
+                    "key_functionality_id": "generate-invoice-number"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00064",
+                    "rule_type": "Definitional Rules",
+                    "rule_name": "Invoice Number Uniqueness Per Customer Per Billing Month",
+                    "rule_description": "The resulting invoice number uniquely identifies a billing event for a specific customer in a specific billing month. The combination of billing month and customer ID guarantees uniqueness of each invoice within a billing cycle.",
+                    "sub_graph_node_text": "Invoice Number Created e.g. 2024-01 - CUST001",
+                    "acceptance_criteria": {
+                        "Given": "A usage record exists for a customer with a specific billing month, and a matching active customer record exists in the Customer Master",
+                        "When": "The invoice number is fully constructed",
+                        "Then": "The resulting Invoice Number must be a unique identifier in the format '[Billing Month]-[Customer ID]' (e.g., '2024-01-CUST001'), where the Billing Month comes from the usage record and the Customer ID comes from the Customer Master record, and this invoice number is then used to identify the invoice record written to the Invoice output file"
+                    },
+                    "key_functionality_id": "generate-invoice-number"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Generate Invoice Number"
+        },
+        {
+            "id": "format-invoice-output",
+            "title": "Format Invoice Output",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([Start: Format Invoice Output])\n    B[Format Usage Charge\\ninto Display-Ready Value]\n    C[Format Discount Amount\\ninto Display-Ready Value]\n    D[Format Tax Amount\\ninto Display-Ready Value]\n    E[Format Previous Balance\\ninto Display-Ready Value]\n    F[Format Total Amount Due\\ninto Display-Ready Value]\n    G([End: All Monetary Values\\nFormatted for Invoice])\n\n    A --> B\n    B --> C\n    C --> D\n    D --> E\n    E --> F\n    F --> G",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00065",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Format Usage Charge for Invoice Display",
+                    "rule_description": "The calculated usage charge (units multiplied by applicable rate, before any discounts) must be converted into a display-ready format before being printed on the invoice record.",
+                    "sub_graph_node_text": "Format Usage Charge into Display-Ready Value",
+                    "acceptance_criteria": {
+                        "Given": "A usage charge amount has been calculated for the customer based on their consumed units and the applicable tiered rate",
+                        "When": "The invoice output is being prepared for the current billing period",
+                        "Then": "The usage charge value is formatted into a display-ready field (WS-DISPLAY-CHARGE) suitable for inclusion in the invoice record, preserving the monetary value accurately for customer-facing output"
+                    },
+                    "key_functionality_id": "format-invoice-output"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00066",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Format Discount Amount for Invoice Display",
+                    "rule_description": "The total discount amount applied to the customer's bill (which may include a volume discount, a premium customer discount, or both combined) must be converted into a display-ready format before being printed on the invoice record.",
+                    "sub_graph_node_text": "Format Discount Amount into Display-Ready Value",
+                    "acceptance_criteria": {
+                        "Given": "A total discount amount has been determined for the customer, which may reflect a volume discount, a premium customer discount, or a combination of both, or zero if no discounts apply",
+                        "When": "The invoice output is being prepared for the current billing period",
+                        "Then": "The total discount value is formatted into a display-ready field (WS-DISPLAY-DISCOUNT) suitable for inclusion in the invoice record, showing the customer the total savings applied to their bill"
+                    },
+                    "key_functionality_id": "format-invoice-output"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00067",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Format Tax Amount for Invoice Display",
+                    "rule_description": "The tax amount calculated on the customer's taxable amount using the customer-specific tax rate must be converted into a display-ready format before being printed on the invoice record.",
+                    "sub_graph_node_text": "Format Tax Amount into Display-Ready Value",
+                    "acceptance_criteria": {
+                        "Given": "A tax amount has been calculated by applying the customer's individual tax rate to the taxable amount (which is either the net charge after discounts or the minimum charge floor, whichever is greater)",
+                        "When": "The invoice output is being prepared for the current billing period",
+                        "Then": "The tax amount value is formatted into a display-ready field (WS-DISPLAY-TAX) suitable for inclusion in the invoice record, providing the customer with a transparent view of the tax component of their bill"
+                    },
+                    "key_functionality_id": "format-invoice-output"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00068",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Format Previous Balance for Invoice Display",
+                    "rule_description": "The customer's outstanding previous balance carried forward from prior billing periods must be converted into a display-ready format before being printed on the invoice record.",
+                    "sub_graph_node_text": "Format Previous Balance into Display-Ready Value",
+                    "acceptance_criteria": {
+                        "Given": "A previous balance amount exists on the customer's account as retrieved from the Customer Master record (CUST-PREV-BALANCE), which may be zero if the account is fully paid",
+                        "When": "The invoice output is being prepared for the current billing period",
+                        "Then": "The previous balance value is formatted into a display-ready field (WS-DISPLAY-BALANCE) suitable for inclusion in the invoice record, clearly showing the customer any outstanding amount carried forward from prior periods"
+                    },
+                    "key_functionality_id": "format-invoice-output"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00069",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Format Total Amount Due for Invoice Display",
+                    "rule_description": "The final total amount due, which is the sum of the taxable amount, tax, and any previous outstanding balance, must be converted into a display-ready format before being printed on the invoice record as the customer's total payment obligation.",
+                    "sub_graph_node_text": "Format Total Amount Due into Display-Ready Value",
+                    "acceptance_criteria": {
+                        "Given": "A final total amount due has been computed for the customer as the sum of the taxable amount (net charge after discounts or minimum charge), the tax amount, and the previous balance carried forward",
+                        "When": "The invoice output is being prepared for the current billing period",
+                        "Then": "The final total amount value is formatted into a display-ready field (WS-DISPLAY-TOTAL) suitable for inclusion in the invoice record, representing the complete amount the customer is required to pay for the current billing period including all charges, taxes, and prior balances"
+                    },
+                    "key_functionality_id": "format-invoice-output"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Format Invoice Output"
+        },
+        {
+            "id": "write-invoice-record",
+            "title": "Write Invoice Record",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([Start: Write Invoice Record])\n    B[Assemble Invoice Record with All Fields:\\n- Invoice Number\\n- Customer ID\\n- Customer Name\\n- Units Consumed\\n- Usage Charge\\n- Discount Amount\\n- Tax Amount\\n- Previous Balance\\n- Total Amount Due]\n    C[Write Assembled Record\\nto INVOICE.dat Output File]\n    D[Display Confirmation Message:\\nINVOICE GENERATED: Invoice Number]\n    E([End: Invoice Record Written])\n\n    INVOICE_FILE[(INVOICE.dat\\nInvoice Output File)]\n\n    A --> B\n    B --> C\n    C -.->|Write Invoice Record| INVOICE_FILE\n    C --> D\n    D --> E",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00070",
+                    "rule_type": "Computation Rules",
+                    "rule_name": "Invoice Number Generation from Billing Month and Customer ID",
+                    "rule_description": "The invoice number must be uniquely constructed by concatenating the billing month and the customer ID separated by a hyphen before the invoice record is assembled.",
+                    "sub_graph_node_text": "Assemble Invoice Record with All Fields:\n- Invoice Number\n- Customer ID\n- Customer Name\n- Units Consumed\n- Usage Charge\n- Discount Amount\n- Tax Amount\n- Previous Balance\n- Total Amount Due",
+                    "acceptance_criteria": {
+                        "Given": "A usage record has been processed for a customer with a valid Customer ID and a Billing Month value is available from the usage record",
+                        "When": "The system prepares to assemble the invoice record",
+                        "Then": "The Invoice Number must be formed by concatenating the Billing Month, followed by a hyphen '-', followed by the Customer ID (e.g., '202401-CUST001'), and this Invoice Number is used as the unique identifier for the invoice record"
+                    },
+                    "key_functionality_id": "write-invoice-record"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00071",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Invoice Record Field Assembly with All Billing Components",
+                    "rule_description": "Before writing to the invoice output file, all billing components must be formatted and assembled into a single complete invoice record in a defined pipe-delimited structure containing exactly nine fields.",
+                    "sub_graph_node_text": "Assemble Invoice Record with All Fields:\n- Invoice Number\n- Customer ID\n- Customer Name\n- Units Consumed\n- Usage Charge\n- Discount Amount\n- Tax Amount\n- Previous Balance\n- Total Amount Due",
+                    "acceptance_criteria": {
+                        "Given": "All billing calculations have been completed for an active customer, including Usage Charge, Discount Amount, Tax Amount, Previous Balance, and Final Amount Due, and the Invoice Number has been constructed",
+                        "When": "The system assembles the invoice output record",
+                        "Then": "The invoice record must be assembled as a pipe-delimited line containing exactly the following nine fields in this exact order: Invoice Number | Customer ID | Customer Name | Units Consumed | Usage Charge | Discount Amount | Tax Amount | Previous Balance | Total Amount Due, where all monetary values are formatted into their display format prior to assembly"
+                    },
+                    "key_functionality_id": "write-invoice-record"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00072",
+                    "rule_type": "Action Rules",
+                    "rule_name": "Write Completed Invoice Record to Invoice Output File",
+                    "rule_description": "Once the invoice record is fully assembled with all nine billing components, it must be written to the invoice output file to create a permanent billing record.",
+                    "sub_graph_node_text": "Write Assembled Record\nto INVOICE.dat Output File",
+                    "acceptance_criteria": {
+                        "Given": "The complete pipe-delimited invoice output line has been assembled with all nine required fields including Invoice Number, Customer ID, Customer Name, Units Consumed, Usage Charge, Discount Amount, Tax Amount, Previous Balance, and Total Amount Due",
+                        "When": "The system writes the invoice record",
+                        "Then": "The fully assembled invoice record must be written to the Invoice Output File (INVOICE.dat), creating a permanent invoice entry for the customer's current billing period"
+                    },
+                    "key_functionality_id": "write-invoice-record"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00073",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Invoice Generation Confirmation Display",
+                    "rule_description": "After each invoice record is successfully written to the output file, a confirmation message must be displayed identifying which invoice was generated.",
+                    "sub_graph_node_text": "Display Confirmation Message:\nINVOICE GENERATED: Invoice Number",
+                    "acceptance_criteria": {
+                        "Given": "An invoice record has been successfully written to the Invoice Output File for a customer",
+                        "When": "The invoice write operation completes",
+                        "Then": "The system must display a confirmation message in the format 'INVOICE GENERATED: [Invoice Number]', where [Invoice Number] is the specific invoice number of the record just written, confirming successful invoice creation"
+                    },
+                    "key_functionality_id": "write-invoice-record"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Write Invoice Record"
+        },
+        {
+            "id": "billing-process-completion",
+            "title": "Billing Process Completion",
+            "level": 1,
+            "mermaid_diagram": "flowchart TD\n    A([All Usage Records Processed])\n    B[Close USAGE File]\n    C[Close CUSTOMER File]\n    D[Close INVOICE File]\n    E[Display Billing Process\\nCompletion Message]\n    F([End Billing Process])\n\n    A --> B\n    B --> C\n    C --> D\n    D --> E\n    E --> F",
+            "rules": [
+                {
+                    "rule_id": "R-BILLING-cbl-00074",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Close All Billing Input and Output Files Upon Process Completion",
+                    "rule_description": "Once all usage records have been processed and invoices generated, the billing process must formally close all three data sources \u2014 the Customer file, the Usage file, and the Invoice output file \u2014 to ensure data integrity and proper finalization of the billing run.",
+                    "sub_graph_node_text": "Close USAGE File / Close CUSTOMER File / Close INVOICE File",
+                    "acceptance_criteria": {
+                        "Given": "All usage records from the Usage file have been read and processed (end of Usage file has been reached), and the billing cycle has completed generating invoices for all eligible active customers",
+                        "When": "The billing process reaches the end of the usage record loop with no more records to process",
+                        "Then": "The system must close the Customer file, the Usage file, and the Invoice output file \u2014 all three files must be closed in sequence before the billing process terminates, ensuring no data remains uncommitted or inaccessible"
+                    },
+                    "key_functionality_id": "billing-process-completion"
+                },
+                {
+                    "rule_id": "R-BILLING-cbl-00075",
+                    "rule_type": "Process Rules",
+                    "rule_name": "Display Billing Process Completion Confirmation Message",
+                    "rule_description": "After all files are closed and the billing run is fully complete, the system must display a standardized completion message to confirm that the BILL01 billing process has finished successfully. This provides an auditable end-of-process indicator for operations staff.",
+                    "sub_graph_node_text": "Display Billing Process Completion Message",
+                    "acceptance_criteria": {
+                        "Given": "All usage records have been processed, all invoices have been generated for eligible active customers, and all billing files (Customer, Usage, and Invoice) have been successfully closed",
+                        "When": "The billing process has completed all processing and file closure steps",
+                        "Then": "The system must display the message 'BILL01 BILLING PROCESS COMPLETE' surrounded by separator lines (dashes), confirming the successful completion of the billing run, and then terminate the billing process"
+                    },
+                    "key_functionality_id": "billing-process-completion"
+                }
+            ],
+            "sub_functionalities": [],
+            "description": "Billing Process Completion"
+        }
+    ],
+    "all_rules": [
+        {
+            "Rule_Id": "R-BILLING-cbl-00001",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "The billing process is initiated",
+                "When": "The system starts the billing run",
+                "Then": "The system must open the Usage File for reading, the Customer File for reading, and the Invoice File for writing before any billing records are processed"
+            },
+            "Rule_Name": "Open Required Business Files to Begin Billing",
+            "Rule_Description": "Before any billing activity can begin, the system must have access to all three required data sources: the Usage File (containing consumption records), the Customer File (containing customer master data), and the Invoice File (where generated invoices will be written)."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00002",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "The Usage File is open and available for reading",
+                "When": "The system reads the next usage record from the Usage File",
+                "Then": "The system captures the Customer ID, Usage Units, and Billing Month from the usage record and uses these values for all subsequent billing calculations for that customer"
+            },
+            "Rule_Name": "Read Usage Record to Drive Billing Cycle",
+            "Rule_Description": "The billing process is driven by usage records. Each usage record contains the customer identifier, the number of units consumed, and the billing month. The system reads one usage record at a time and uses it as the basis for generating a customer invoice."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00003",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "The system is in the billing processing loop reading usage records",
+                "When": "A read attempt is made on the Usage File",
+                "Then": "If there are more records, the system proceeds to find the customer and generate a bill; if there are no more records (end of file), the system exits the billing loop and proceeds to close all files and display the completion message"
+            },
+            "Rule_Name": "Detect End of Usage File to Terminate Billing Loop",
+            "Rule_Description": "The billing process must continue processing usage records until all records in the Usage File have been processed. When no more usage records exist, the billing cycle ends."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00004",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record has been read with a specific Customer ID",
+                "When": "The system searches the Customer Master File",
+                "Then": "The system scans the Customer Master File from the beginning, comparing each customer record's Customer ID against the Customer ID from the usage record, and marks the customer as found when a match is identified; if no match is found after scanning all records, the customer is marked as not found"
+            },
+            "Rule_Name": "Locate Customer Record in Customer Master",
+            "Rule_Description": "For each usage record read, the system must locate the corresponding customer in the Customer Master File using the Customer ID from the usage record. The Customer Master File is searched from the beginning for every usage record to ensure the correct customer data is retrieved."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00005",
+            "Rule_Type": "Validation Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record has been read with a specific Customer ID",
+                "When": "The Customer ID from the usage record does not match any record in the Customer Master File",
+                "Then": "The system logs the error message 'ERROR: CUSTOMER NOT FOUND' along with the unmatched Customer ID, skips invoice generation for this usage record, and proceeds to read the next usage record"
+            },
+            "Rule_Name": "Handle Customer Not Found in Customer Master",
+            "Rule_Description": "If a usage record references a Customer ID that does not exist in the Customer Master File, the system cannot generate an invoice. The error must be logged and the system must continue processing the next usage record."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00006",
+            "Rule_Type": "Validation Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer record has been found in the Customer Master File matching the Customer ID from the usage record",
+                "When": "The system evaluates the customer's status field",
+                "Then": "If the customer status is 'ACTIVE', the system proceeds to calculate the bill and generate an invoice; if the customer status is anything other than 'ACTIVE', the system logs an error and skips invoice generation for this customer"
+            },
+            "Rule_Name": "Validate Customer Active Status Before Billing",
+            "Rule_Description": "Only customers with an ACTIVE status are eligible to receive invoices. The customer status must be validated after the customer record is found in the Customer Master File."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00007",
+            "Rule_Type": "Policy Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer record has been found in the Customer Master File",
+                "When": "The customer's status is not 'ACTIVE'",
+                "Then": "The system logs the error message 'ERROR: CUSTOMER IS NOT ACTIVE' along with the Customer ID, skips all billing calculations and invoice generation for this usage record, and proceeds to read the next usage record"
+            },
+            "Rule_Name": "Handle Inactive Customer \u2014 Skip Invoice Generation",
+            "Rule_Description": "If a customer exists in the Customer Master File but their status is not ACTIVE, the system must not generate an invoice. The error must be logged and the system must continue processing the next usage record."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00008",
+            "Rule_Type": "Decision Rules",
+            "Acceptance_Criteria": {
+                "Given": "An active customer's usage record is being processed with a known number of usage units",
+                "When": "The system determines the applicable billing rate",
+                "Then": "If usage units are 500 or fewer, the rate is set to $0.50 per unit; if usage units are between 501 and 1000 (inclusive), the rate is set to $0.45 per unit; if usage units exceed 1000, the rate is set to $0.40 per unit \u2014 the selected rate applies to all units consumed"
+            },
+            "Rule_Name": "Determine Per-Unit Rate Based on Usage Tier",
+            "Rule_Description": "The per-unit billing rate is determined by the total number of units consumed in the billing period. Three pricing tiers exist, and the applicable rate is a single flat rate applied to all units based on which tier the total consumption falls into."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00009",
+            "Rule_Type": "Computation Rules",
+            "Acceptance_Criteria": {
+                "Given": "The usage units and the applicable per-unit rate have been determined",
+                "When": "The system calculates the usage charge",
+                "Then": "The Usage Charge is computed as: Usage Units multiplied by the Per-Unit Rate"
+            },
+            "Rule_Name": "Calculate Usage Charge from Units and Rate",
+            "Rule_Description": "The base usage charge is calculated by multiplying the total units consumed by the applicable per-unit rate determined from the pricing tier."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00010",
+            "Rule_Type": "Decision Rules",
+            "Acceptance_Criteria": {
+                "Given": "The usage charge has been calculated for an active customer",
+                "When": "The system checks whether the customer's usage units exceed the Volume Threshold",
+                "Then": "If usage units are greater than the Volume Threshold, a Volume Discount is calculated as the Usage Charge multiplied by the Volume Discount Rate and stored as the discount amount; if usage units do not exceed the Volume Threshold, no volume discount is applied and the discount amount remains zero"
+            },
+            "Rule_Name": "Apply Volume Discount When Usage Exceeds Threshold",
+            "Rule_Description": "Customers whose usage exceeds the defined volume threshold qualify for a volume discount. The discount is calculated as a percentage of the usage charge and reduces the amount the customer owes."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00011",
+            "Rule_Type": "Decision Rules",
+            "Acceptance_Criteria": {
+                "Given": "The usage charge has been calculated and any applicable volume discount has been determined",
+                "When": "The system checks whether the customer type is 'PREMIUM'",
+                "Then": "If the customer type is 'PREMIUM', the Premium Discount is calculated as the Usage Charge multiplied by the Premium Discount Rate, and this amount is added to any existing discount (volume discount); the total discount becomes: existing discount plus premium discount; if the customer type is not 'PREMIUM', no additional premium discount is applied"
+            },
+            "Rule_Name": "Apply Additional Premium Customer Discount",
+            "Rule_Description": "Customers classified as PREMIUM receive an additional discount on top of any volume discount already applied. This premium discount is calculated as a percentage of the original usage charge and is added to the existing discount amount."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00012",
+            "Rule_Type": "Policy Rules",
+            "Acceptance_Criteria": {
+                "Given": "The usage charge and all applicable discounts have been calculated",
+                "When": "The system computes the net charge by subtracting total discounts from the usage charge",
+                "Then": "If the net charge (Usage Charge minus Total Discount) is less than the Minimum Charge of $25.00, the Taxable Amount is set to $25.00; otherwise, the Taxable Amount is set to the net charge (Usage Charge minus Total Discount)"
+            },
+            "Rule_Name": "Enforce Minimum Charge Floor on Taxable Amount",
+            "Rule_Description": "To ensure the business always recovers a baseline revenue amount, a minimum charge floor is enforced. If the net charge after all discounts falls below the minimum charge, the taxable amount is set to the minimum charge instead."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00013",
+            "Rule_Type": "Computation Rules",
+            "Acceptance_Criteria": {
+                "Given": "The taxable amount has been determined after applying discounts and the minimum charge rule",
+                "When": "The system calculates the tax for the invoice",
+                "Then": "The Tax Amount is computed as: Taxable Amount multiplied by the Customer's Tax Rate (retrieved from the Customer Master record)"
+            },
+            "Rule_Name": "Calculate Tax Using Customer-Specific Tax Rate",
+            "Rule_Description": "Tax is calculated on the taxable amount using the individual customer's tax rate stored in the Customer Master record. Each customer may have a different tax rate, reflecting their applicable tax jurisdiction or classification."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00014",
+            "Rule_Type": "Computation Rules",
+            "Acceptance_Criteria": {
+                "Given": "The taxable amount and tax amount have been calculated, and the customer's previous balance is available from the Customer Master record",
+                "When": "The system calculates the final invoice amount",
+                "Then": "The Final Invoice Amount is computed as: Taxable Amount plus Tax Amount plus Customer's Previous Balance"
+            },
+            "Rule_Name": "Calculate Final Invoice Amount Including Previous Balance",
+            "Rule_Description": "The final amount due on the invoice includes the current period's taxable charge, the tax amount, and any outstanding previous balance carried forward from the customer's account."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00015",
+            "Rule_Type": "Definitional Rules",
+            "Acceptance_Criteria": {
+                "Given": "The billing month from the usage record and the customer ID from the Customer Master are available",
+                "When": "The system generates the invoice number",
+                "Then": "The Invoice Number is constructed by concatenating the Billing Month, a hyphen separator '-', and the Customer ID (format: BILLING-MONTH-CUSTOMERID)"
+            },
+            "Rule_Name": "Generate Unique Invoice Number from Billing Month and Customer ID",
+            "Rule_Description": "Each invoice must have a unique identifier that ties it to a specific billing period and customer. The invoice number is constructed by combining the billing month from the usage record and the customer ID."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00016",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "All billing calculations have been completed including usage charge, discount, tax, previous balance, and final amount",
+                "When": "The system prepares the invoice record for output",
+                "Then": "The system formats the Usage Charge, Total Discount, Tax Amount, Previous Balance, and Final Amount into their display formats, then assembles a pipe-delimited output record containing: Invoice Number, Customer ID, Customer Name, Usage Units, Formatted Usage Charge, Formatted Discount, Formatted Tax, Formatted Previous Balance, and Formatted Final Amount \u2014 in that order"
+            },
+            "Rule_Name": "Format All Monetary Values for Invoice Output",
+            "Rule_Description": "Before writing the invoice record, all monetary values must be formatted into their display representation to ensure the invoice output is correctly structured and readable."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00017",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "The invoice output record has been fully formatted with all required fields",
+                "When": "The system writes the invoice",
+                "Then": "The formatted invoice record is written to the Invoice File, and the system displays the confirmation message 'INVOICE GENERATED:' followed by the Invoice Number"
+            },
+            "Rule_Name": "Write Completed Invoice Record to Invoice File",
+            "Rule_Description": "Once the invoice has been fully calculated and formatted, the invoice record must be written to the Invoice File and a confirmation message displayed to acknowledge successful invoice generation."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00018",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "All usage records in the Usage File have been processed",
+                "When": "The end of the Usage File is reached and the billing loop exits",
+                "Then": "The system closes the Customer File, Usage File, and Invoice File, then displays the completion message 'BILL01 BILLING PROCESS COMPLETE' and terminates the billing process"
+            },
+            "Rule_Name": "Close All Files and Confirm Billing Process Completion",
+            "Rule_Description": "Once all usage records have been processed, the billing run must be formally concluded by closing all open files and displaying a completion message to confirm the billing process has finished successfully."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00019",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "The Usage File (USAGE.dat) is open and available for reading, and the billing process has been initiated or a previous usage record has already been processed",
+                "When": "The system attempts to read the next sequential record from the Usage File",
+                "Then": "The system retrieves the next available usage record containing the customer's usage data for the billing period"
+            },
+            "Rule_Name": "Read Next Usage Record from Usage File",
+            "Rule_Description": "The billing system reads each customer usage record sequentially from the Usage File (USAGE.dat) to retrieve billing data for processing."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00020",
+            "Rule_Type": "Decision Rules",
+            "Acceptance_Criteria": {
+                "Given": "The system is reading records sequentially from the Usage File",
+                "When": "The system attempts to read a record and no more records are available in the Usage File (end-of-file condition is reached)",
+                "Then": "The system sets the End-of-Usage indicator to TRUE, which terminates the main billing processing loop and no further usage records are processed"
+            },
+            "Rule_Name": "Detect End of Usage File to Stop Processing",
+            "Rule_Description": "When no more usage records exist in the Usage File, the billing process must recognize the end-of-file condition and stop processing further records."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00021",
+            "Rule_Type": "Definitional Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record has been successfully read from the Usage File and a record is available (not end-of-file)",
+                "When": "The system processes the successfully read usage record",
+                "Then": "The Customer ID field from the usage record (USAGE-CUST-ID) is captured and stored as the current Customer ID (WS-CURRENT-CUSTOMER-ID) to be used for customer lookup and invoice generation"
+            },
+            "Rule_Name": "Capture Customer ID from Usage Record",
+            "Rule_Description": "When a valid usage record is successfully read, the Customer ID from the usage record must be captured as the current customer being billed, so it can be used to look up the customer in the Customer Master."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00022",
+            "Rule_Type": "Definitional Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record has been successfully read from the Usage File and a record is available (not end-of-file)",
+                "When": "The system processes the successfully read usage record",
+                "Then": "The units consumed field from the usage record (USAGE-UNITS) is captured and stored as the current usage units (WS-USAGE-UNITS) to be used in billing calculations including rate determination, volume discount eligibility, and usage charge computation"
+            },
+            "Rule_Name": "Capture Number of Units Consumed from Usage Record",
+            "Rule_Description": "When a valid usage record is successfully read, the number of units consumed by the customer must be captured from the usage record, as it drives rate tier selection, discount eligibility, and charge calculation."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00023",
+            "Rule_Type": "Definitional Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record has been successfully read from the Usage File and a record is available (not end-of-file)",
+                "When": "The system processes the successfully read usage record",
+                "Then": "The billing month field from the usage record (USAGE-MONTH) is captured and stored as the current billing month (WS-BILLING-MONTH) to be used for invoice number generation in the format [BILLING-MONTH]-[CUSTOMER-ID]"
+            },
+            "Rule_Name": "Capture Billing Month from Usage Record",
+            "Rule_Description": "When a valid usage record is successfully read, the billing month must be captured from the usage record, as it identifies the period for which the customer is being billed and is used to construct the invoice number."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00024",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record has been successfully read from the Usage File (not end-of-file)",
+                "When": "All three data elements have been captured: the Customer ID (WS-CURRENT-CUSTOMER-ID), the number of units consumed (WS-USAGE-UNITS), and the billing month (WS-BILLING-MONTH)",
+                "Then": "The usage record is considered fully prepared and the billing process proceeds to the next step of locating the corresponding customer in the Customer Master file using the captured Customer ID"
+            },
+            "Rule_Name": "Usage Record Ready for Billing Processing",
+            "Rule_Description": "Only when all three required data elements \u2014 Customer ID, Units Consumed, and Billing Month \u2014 have been successfully captured from a usage record is the record considered complete and ready to proceed to customer lookup and bill calculation."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00025",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "A new usage record has been read and a customer lookup is about to begin",
+                "When": "The Find Customer process is initiated for the current usage record's Customer ID",
+                "Then": "The Customer Found indicator must be reset to 'No' (N) and the End-of-Customer-File indicator must be reset to 'No' (N), ensuring a clean search state before scanning the Customer Master file"
+            },
+            "Rule_Name": "Reset Customer Search State Before Each Lookup",
+            "Rule_Description": "Before searching for a customer, the system must reset the customer search state to ensure no carry-over from a previous search affects the current lookup result."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00026",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "The Customer Found indicator has been reset to 'No' and a customer lookup is about to begin for the current Customer ID from the usage record",
+                "When": "The Find Customer process positions to the start of the Customer Master file",
+                "Then": "The Customer Master file is closed and immediately reopened so that the next read will start from the first record in the file, guaranteeing a full file scan from the beginning"
+            },
+            "Rule_Name": "Reposition Customer File to Beginning for Each Search",
+            "Rule_Description": "The Customer Master file must always be searched from the very beginning for each usage record, ensuring every customer record is eligible to be matched regardless of where the previous search ended."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00027",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "The Customer Master file is open and positioned at the current read location, and neither a matching customer has been found nor the end of the file has been reached",
+                "When": "The system reads the next available customer record from the Customer Master file",
+                "Then": "The next customer record is retrieved and made available for Customer ID comparison; if no more records exist, the End-of-Customer-File indicator is set to 'True'"
+            },
+            "Rule_Name": "Read Customer Records Sequentially During Search",
+            "Rule_Description": "The system reads customer records one at a time from the Customer Master file in sequential order to find a matching customer for the current usage record."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00028",
+            "Rule_Type": "Validation Rules",
+            "Acceptance_Criteria": {
+                "Given": "The system is sequentially reading through the Customer Master file searching for a matching Customer ID",
+                "When": "The system attempts to read the next customer record and there are no more records remaining in the Customer Master file",
+                "Then": "The End-of-Customer-File indicator is set to 'True', the search loop is terminated, and control returns to the calling process with Customer Found = 'No', indicating the customer does not exist in the Customer Master file"
+            },
+            "Rule_Name": "Detect End of Customer File During Search",
+            "Rule_Description": "When all customer records have been read without finding a match, the system must recognize that the customer does not exist in the Customer Master file and terminate the search."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00029",
+            "Rule_Type": "Decision Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer record has been successfully read from the Customer Master file and the End-of-Customer-File indicator is 'No'",
+                "When": "The Customer ID field (CUST-ID) from the current Customer Master record is compared against the Customer ID (WS-CURRENT-CUSTOMER-ID) extracted from the current usage record",
+                "Then": "If the two Customer IDs are equal, the customer is considered matched and the Customer Found indicator is set to 'True'; if they are not equal, the system reads the next customer record and repeats the comparison"
+            },
+            "Rule_Name": "Match Customer Record by Customer ID",
+            "Rule_Description": "Each customer record read from the Customer Master file must be evaluated to determine whether its Customer ID matches the Customer ID from the current usage record being processed."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00030",
+            "Rule_Type": "Decision Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer record has been read from the Customer Master file and its Customer ID exactly matches the Customer ID from the current usage record",
+                "When": "The Customer ID comparison confirms a match between CUST-ID and WS-CURRENT-CUSTOMER-ID",
+                "Then": "The Customer Found indicator is set to 'True', the search loop is immediately terminated, and the matched customer's full record (including CUST-ID, CUST-NAME, CUST-STATUS, CUST-TYPE, CUST-TAX-RATE, CUST-PREV-BALANCE) is retained in memory and returned to the calling process for use in billing"
+            },
+            "Rule_Name": "Mark Customer as Found Upon Successful ID Match",
+            "Rule_Description": "When a customer record in the Customer Master file has a Customer ID that matches the usage record's Customer ID, the system must flag the customer as found and stop further searching."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00031",
+            "Rule_Type": "Action Rules",
+            "Acceptance_Criteria": {
+                "Given": "The Customer Found indicator has been set to 'True' after a successful Customer ID match in the Customer Master file",
+                "When": "The Find Customer search loop terminates because the Customer Found condition is 'True'",
+                "Then": "Control returns to the main billing process with Customer Found = 'Yes', and the full customer record data is available for subsequent status validation and bill calculation"
+            },
+            "Rule_Name": "Return Customer Found Result to Billing Process",
+            "Rule_Description": "Upon successfully locating a matching customer record, the Find Customer process concludes and signals to the main billing process that the customer was found, enabling billing to proceed."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00032",
+            "Rule_Type": "Action Rules",
+            "Acceptance_Criteria": {
+                "Given": "The system has read through all records in the Customer Master file without finding a Customer ID that matches the current usage record's Customer ID",
+                "When": "The End-of-Customer-File indicator is set to 'True' and the search loop terminates",
+                "Then": "Control returns to the main billing process with Customer Found = 'No', which will cause the main process to display the error message 'ERROR: CUSTOMER NOT FOUND - [Customer ID]' and skip bill calculation and invoice generation for this usage record"
+            },
+            "Rule_Name": "Return Customer Not Found Result to Billing Process",
+            "Rule_Description": "When the entire Customer Master file has been scanned without finding a matching Customer ID, the Find Customer process concludes and signals to the main billing process that the customer does not exist, preventing invoice generation."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00033",
+            "Rule_Type": "Validation Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record has been read with a specific Customer ID, and a search of the Customer Master file has been completed for that Customer ID",
+                "When": "No matching customer record is found in the Customer Master file for the given Customer ID",
+                "Then": "The system must: (1) Log an error message 'ERROR: CUSTOMER NOT FOUND - [Customer ID]' identifying the unrecognized Customer ID, (2) Skip all billing processing (no bill calculation, no invoice generation) for this usage record, and (3) Proceed to the next usage record"
+            },
+            "Rule_Name": "Customer Existence Validation Before Billing",
+            "Rule_Description": "Before any billing activity is performed, the system must verify that the Customer ID from the usage record matches an existing customer in the Customer Master. If no matching customer is found, billing is skipped and an error is logged with the unmatched Customer ID."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00034",
+            "Rule_Type": "Validation Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record has been read with a specific Customer ID, and the customer has been successfully located in the Customer Master file",
+                "When": "The customer's status in the Customer Master is NOT equal to 'ACTIVE' (i.e., the customer is inactive or holds any other non-active status)",
+                "Then": "The system must: (1) Log an error message 'ERROR: CUSTOMER IS NOT ACTIVE - [Customer ID]' identifying the inactive customer, (2) Skip all billing processing (no bill calculation, no invoice generation) for this usage record, and (3) Proceed to the next usage record"
+            },
+            "Rule_Name": "Active Customer Status Validation Before Billing",
+            "Rule_Description": "Even when a customer is found in the Customer Master, billing may only proceed if that customer holds an ACTIVE status. Customers with any status other than ACTIVE are ineligible for bill generation, and an error is logged with their Customer ID."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00035",
+            "Rule_Type": "Action Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record has been read with a specific Customer ID, the customer has been successfully located in the Customer Master file, and the customer's status is 'ACTIVE'",
+                "When": "Both the customer existence check and the active status check pass successfully",
+                "Then": "The system must proceed to: (1) Execute the bill calculation process for the customer's usage record, and (2) Execute the invoice generation process to produce and write the invoice output"
+            },
+            "Rule_Name": "Proceed to Billing for Active Customers",
+            "Rule_Description": "When a customer is both found in the Customer Master and confirmed to have an ACTIVE status, the system is authorized to proceed with full billing processing \u2014 calculating the bill and generating the invoice."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00036",
+            "Rule_Type": "Policy Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record exists with a Customer ID that was searched in the Customer Master file",
+                "When": "The Customer ID from the usage record does not match any Customer ID in the Customer Master file",
+                "Then": "The system must display the error message 'ERROR: CUSTOMER NOT FOUND - [Customer ID]' where [Customer ID] is the exact Customer ID from the usage record that could not be matched, and no bill calculation or invoice generation is performed for this usage record"
+            },
+            "Rule_Name": "Skip Billing and Log Error for Not-Found Customer",
+            "Rule_Description": "When a Customer ID from a usage record cannot be matched to any record in the Customer Master file, the system logs a descriptive error message that includes the unmatched Customer ID, ensuring the issue is traceable, and skips billing for that record."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00037",
+            "Rule_Type": "Policy Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record exists with a Customer ID that was found in the Customer Master file",
+                "When": "The customer's status field in the Customer Master record is not equal to 'ACTIVE'",
+                "Then": "The system must display the error message 'ERROR: CUSTOMER IS NOT ACTIVE - [Customer ID]' where [Customer ID] is the exact Customer ID of the inactive customer, and no bill calculation or invoice generation is performed for this usage record"
+            },
+            "Rule_Name": "Skip Billing and Log Error for Inactive Customer",
+            "Rule_Description": "When a customer is found in the Customer Master but their status is not ACTIVE, the system logs a descriptive error message that includes the Customer ID of the inactive customer, ensuring the issue is traceable, and skips billing for that record."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00038",
+            "Rule_Type": "Decision Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer usage record has been read with a valid Units Consumed value, and the billing rate calculation process has been initiated for that customer",
+                "When": "The Units Consumed in the billing period is less than or equal to 500 units",
+                "Then": "The per-unit billing rate is set to $0.50 (Tier 1 - Low Usage), and the system proceeds to calculate the Usage Charge using this rate"
+            },
+            "Rule_Name": "Assign Tier 1 Low Usage Rate for Up to 500 Units",
+            "Rule_Description": "When a customer's usage units consumed in the billing period are 500 or fewer, the system assigns the Tier 1 low-usage per-unit billing rate of $0.50. This rate will be used to calculate the total usage charge for the invoice."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00039",
+            "Rule_Type": "Decision Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer usage record has been read with a valid Units Consumed value, and the billing rate calculation process has been initiated for that customer",
+                "When": "The Units Consumed in the billing period is greater than 500 units AND less than or equal to 1000 units",
+                "Then": "The per-unit billing rate is set to $0.45 (Tier 2 - Medium Usage), and the system proceeds to calculate the Usage Charge using this rate"
+            },
+            "Rule_Name": "Assign Tier 2 Medium Usage Rate for 501 to 1000 Units",
+            "Rule_Description": "When a customer's usage units consumed in the billing period are between 501 and 1000 (inclusive), the system assigns the Tier 2 medium-usage per-unit billing rate of $0.45. This rate will be used to calculate the total usage charge for the invoice."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00040",
+            "Rule_Type": "Decision Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer usage record has been read with a valid Units Consumed value, and the billing rate calculation process has been initiated for that customer",
+                "When": "The Units Consumed in the billing period is greater than 1000 units",
+                "Then": "The per-unit billing rate is set to $0.40 (Tier 3 - High Usage), and the system proceeds to calculate the Usage Charge using this rate"
+            },
+            "Rule_Name": "Assign Tier 3 High Usage Rate for More Than 1000 Units",
+            "Rule_Description": "When a customer's usage units consumed in the billing period exceed 1000 units, the system assigns the Tier 3 high-usage per-unit billing rate of $0.40. This is the lowest per-unit rate and rewards high-volume consumption. This rate will be used to calculate the total usage charge for the invoice."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00041",
+            "Rule_Type": "Computation Rules",
+            "Acceptance_Criteria": {
+                "Given": "The Units Consumed for the billing period is known and a per-unit billing rate has been assigned based on the applicable usage tier (Tier 1 at $0.50, Tier 2 at $0.45, or Tier 3 at $0.40)",
+                "When": "The tiered rate assignment is complete and the system proceeds to compute the Usage Charge",
+                "Then": "The Usage Charge is calculated as Units Consumed multiplied by the assigned per-unit Rate, and this Usage Charge value is carried forward as the base amount for subsequent discount and tax calculations"
+            },
+            "Rule_Name": "Calculate Usage Charge from Units and Assigned Rate",
+            "Rule_Description": "Once the appropriate tiered per-unit billing rate has been determined based on the customer's units consumed, the system computes the total Usage Charge by multiplying the total units consumed by the assigned per-unit rate. This Usage Charge forms the base amount before any discounts or taxes are applied."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00042",
+            "Rule_Type": "Computation Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record has been read containing the total units consumed for the billing period, and the applicable per-unit rate has already been determined based on the usage tier (either $0.50 for up to 500 units, $0.45 for 501\u20131000 units, or $0.40 for over 1000 units)",
+                "When": "The billing system computes the gross usage charge by multiplying the total units consumed (WS-USAGE-UNITS) by the applicable per-unit rate (WS-RATE)",
+                "Then": "The gross usage charge (WS-USAGE-CHARGE) is set to the product of total units consumed multiplied by the per-unit rate, and this gross usage charge value is retained and made available for all subsequent discount and tax calculations"
+            },
+            "Rule_Name": "Compute Gross Usage Charge from Units and Rate",
+            "Rule_Description": "The gross usage charge is calculated by multiplying the total units consumed in the billing period by the applicable per-unit rate that was determined based on the usage tier. The resulting gross usage charge is stored for subsequent discount processing."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00043",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record has been successfully read from the Usage File for a customer in a given billing month",
+                "When": "The billing system prepares to calculate the bill for that customer",
+                "Then": "The total units consumed (USAGE-UNITS) from the usage record are captured and stored as the working value (WS-USAGE-UNITS) to be used in the gross usage charge computation"
+            },
+            "Rule_Name": "Retrieve Total Units Consumed from Usage Record",
+            "Rule_Description": "Before computing the gross usage charge, the total units consumed by the customer during the billing period must be retrieved from the usage record that was read from the Usage File."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00044",
+            "Rule_Type": "Decision Rules",
+            "Acceptance_Criteria": {
+                "Given": "The total units consumed (WS-USAGE-UNITS) for the billing period have been retrieved from the usage record",
+                "When": "The billing system evaluates the total units consumed against the defined usage tier thresholds",
+                "Then": "The per-unit rate (WS-RATE) is set as follows: if total units consumed are 500 or fewer, the rate is $0.50 per unit; if total units consumed are between 501 and 1000 inclusive, the rate is $0.45 per unit; if total units consumed exceed 1000, the rate is $0.40 per unit \u2014 and this rate is retained for use in the gross usage charge computation"
+            },
+            "Rule_Name": "Retrieve Applicable Per-Unit Rate Based on Usage Tier",
+            "Rule_Description": "The per-unit rate to be applied for billing is determined by evaluating which usage tier the customer's total units consumed falls into. Three tiers exist with decreasing rates for higher consumption volumes."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00045",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "The gross usage charge has been successfully computed as the product of total units consumed and the applicable per-unit rate",
+                "When": "The billing system completes the gross usage charge computation step",
+                "Then": "The gross usage charge value (WS-USAGE-CHARGE) is retained in working storage and is available as the input base amount for all subsequent billing steps including volume discount evaluation, premium discount evaluation, minimum charge floor check, tax computation, and final amount calculation"
+            },
+            "Rule_Name": "Store Gross Usage Charge for Downstream Discount Processing",
+            "Rule_Description": "Once the gross usage charge has been computed, it must be preserved as the base amount from which volume discounts, premium customer discounts, minimum charge comparisons, and tax calculations will subsequently be derived."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00046",
+            "Rule_Type": "Decision Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer's bill is being calculated and the Usage Charge has already been determined based on the tiered rate pricing",
+                "When": "The system evaluates whether the customer's Units Consumed is greater than the Volume Threshold of 1000 units",
+                "Then": "If Units Consumed is greater than 1000 units, the customer is eligible for a Volume Discount and the system proceeds to calculate the discount amount; If Units Consumed is 1000 units or less, no Volume Discount is applied and the Discount amount remains zero, and the system proceeds to the Premium Customer Discount check"
+            },
+            "Rule_Name": "Volume Discount Eligibility Check Based on Units Consumed",
+            "Rule_Description": "Determines whether a customer qualifies for a volume discount by checking if their usage units consumed in the billing period exceed the volume threshold of 1000 units."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00047",
+            "Rule_Type": "Computation Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer's Units Consumed is greater than 1000 units and the customer has been determined eligible for a Volume Discount, and the Usage Charge has been computed based on the applicable tiered unit rate",
+                "When": "The system calculates the Volume Discount",
+                "Then": "The Volume Discount amount is set to 10% of the Usage Charge (Volume Discount = Usage Charge \u00d7 10%), and this Discount value is carried forward to the Premium Customer Discount check"
+            },
+            "Rule_Name": "Volume Discount Amount Calculation at 10% of Usage Charge",
+            "Rule_Description": "Calculates the Volume Discount amount as 10% of the Usage Charge for customers whose Units Consumed exceeds the volume threshold of 1000 units."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00048",
+            "Rule_Type": "Decision Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer record has been retrieved from the Customer Master file and the customer has been verified as ACTIVE, and the usage charge has already been calculated for the current billing period",
+                "When": "The system evaluates the Customer Type field (CUST-TYPE) from the Customer Master record",
+                "Then": "If the Customer Type equals 'PREMIUM', the customer is eligible for an additional premium discount and the system proceeds to calculate the premium discount amount; if the Customer Type is any value other than 'PREMIUM' (i.e., standard customer), no additional premium discount is applied and the system proceeds directly to the Minimum Charge Rule evaluation with the discount amount unchanged"
+            },
+            "Rule_Name": "Identify Premium Customer for Additional Discount Eligibility",
+            "Rule_Description": "Determines whether a customer qualifies for the additional premium discount by checking if their customer type is classified as PREMIUM in the Customer Master record."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00049",
+            "Rule_Type": "Computation Rules",
+            "Acceptance_Criteria": {
+                "Given": "The customer type is confirmed as 'PREMIUM', the Usage Charge (WS-USAGE-CHARGE) has been computed based on usage units and the applicable tiered rate, and the existing discount amount (WS-DISCOUNT) may already contain a volume discount value (which could be zero if the volume threshold was not exceeded)",
+                "When": "The system calculates the premium discount by multiplying the Usage Charge by the Premium Discount Rate (WS-PREMIUM-DISCOUNT-RATE), and adds the resulting premium discount amount to the existing discount",
+                "Then": "The total discount (WS-DISCOUNT) is updated to equal the sum of the prior existing discount plus the premium discount amount (Usage Charge \u00d7 Premium Discount Rate), ensuring that a PREMIUM customer who also exceeded the volume threshold receives both the volume discount and the premium discount cumulatively; the updated total discount is then carried forward to the Minimum Charge Rule evaluation"
+            },
+            "Rule_Name": "Calculate and Accumulate Premium Customer Discount",
+            "Rule_Description": "For customers classified as PREMIUM, calculates an additional discount based on the Premium Discount Rate applied to the Usage Charge, and adds this premium discount on top of any volume discount that may have already been applied, resulting in a cumulative total discount."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00050",
+            "Rule_Type": "Decision Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer's usage charge has been calculated and all applicable discounts (volume discount and/or premium discount) have been applied, resulting in a net charge (Usage Charge minus Total Discounts) that is less than the minimum charge of $25.00",
+                "When": "The billing system evaluates whether the net charge (Usage Charge minus Total Discounts) is less than the minimum charge of $25.00",
+                "Then": "The taxable amount is set to the minimum charge of $25.00, overriding the discounted net charge, so that the customer is billed no less than $25.00 before tax and previous balance are applied"
+            },
+            "Rule_Name": "Apply Minimum Charge Floor When Net Charge Falls Below $25.00",
+            "Rule_Description": "When the usage charge after all applicable discounts (volume and/or premium) is less than the system minimum charge of $25.00, the taxable amount must be set to the minimum charge of $25.00 to ensure the customer is always billed at least the minimum amount."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00051",
+            "Rule_Type": "Computation Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer's usage charge has been calculated and all applicable discounts (volume discount and/or premium discount) have been applied, resulting in a net charge (Usage Charge minus Total Discounts) that is equal to or greater than the minimum charge of $25.00",
+                "When": "The billing system evaluates whether the net charge (Usage Charge minus Total Discounts) is less than the minimum charge of $25.00 and determines it is not",
+                "Then": "The taxable amount is set to the net charge, calculated as Usage Charge minus Total Discounts, and this amount is used as the base for tax calculation"
+            },
+            "Rule_Name": "Use Net Charge as Taxable Amount When At or Above Minimum Charge of $25.00",
+            "Rule_Description": "When the usage charge after all applicable discounts (volume and/or premium) is equal to or greater than the minimum charge of $25.00, the taxable amount is set to the actual discounted net charge, reflecting the true billable amount before tax."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00052",
+            "Rule_Type": "Computation Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer's gross usage charge has been computed based on usage units and the applicable tiered rate, and all eligible discounts (volume discount and/or premium customer discount) have been accumulated into the total discount amount",
+                "When": "The billing system prepares to determine the taxable amount by evaluating the minimum charge rule",
+                "Then": "The net charge is derived as Usage Charge minus Total Discounts, and this net charge value is used as the input to the minimum charge comparison to determine whether the minimum charge floor of $25.00 should be applied"
+            },
+            "Rule_Name": "Calculate Net Charge as Basis for Minimum Charge Comparison",
+            "Rule_Description": "Before applying the minimum charge rule, the net charge must be derived by subtracting all accumulated discounts (volume discount and premium discount, if applicable) from the gross usage charge. This net charge is the value compared against the minimum charge threshold of $25.00."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00053",
+            "Rule_Type": "Computation Rules",
+            "Acceptance_Criteria": {
+                "Given": "A customer's taxable amount has been determined (after applying usage charges, discounts, and the minimum charge floor rule), AND the customer's individual tax rate is available from the Customer Master Record",
+                "When": "The billing system calculates the tax for the current billing period",
+                "Then": "The tax amount must be computed as: Tax Amount = Taxable Amount \u00d7 Customer's Individual Tax Rate, AND the resulting Tax Amount is stored for inclusion in the final bill amount"
+            },
+            "Rule_Name": "Compute Tax Amount Using Customer-Specific Tax Rate",
+            "Rule_Description": "The tax amount for a customer's bill is calculated by multiplying the taxable amount (the amount after all discounts and minimum charge rules have been applied) by the customer's individual tax rate retrieved from the Customer Master Record."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00054",
+            "Rule_Type": "Definitional Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record is being processed for a specific customer who has been found in the Customer Master File and whose status is ACTIVE",
+                "When": "The billing system prepares to calculate the tax amount for the customer's bill",
+                "Then": "The tax rate applied must be the customer's own individual tax rate (CUST-TAX-RATE) as stored in that customer's record in the Customer Master File, NOT a shared or system-level tax rate"
+            },
+            "Rule_Name": "Customer Tax Rate is Individually Assigned Per Customer",
+            "Rule_Description": "Each customer has their own unique tax rate stored in their Customer Master Record. The tax rate used for billing is not a universal or system-wide rate \u2014 it is specific to each individual customer and must be retrieved from that customer's record before tax can be calculated."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00055",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "The usage charge has been calculated based on the customer's units consumed and the applicable tiered rate, AND all applicable discounts (volume discount and/or premium customer discount) have been applied, AND the minimum charge floor rule has been evaluated",
+                "When": "The taxable amount is retrieved as the input for tax computation",
+                "Then": "The taxable amount used as the basis for tax calculation must be either: (a) the result of Usage Charge minus Total Discount, if that result is greater than or equal to the Minimum Charge, OR (b) the Minimum Charge value, if Usage Charge minus Total Discount falls below the Minimum Charge \u2014 and this taxable amount is then multiplied by the customer's individual tax rate to produce the Tax Amount"
+            },
+            "Rule_Name": "Taxable Amount Feeds Into Tax Calculation",
+            "Rule_Description": "The base amount used for tax calculation is the taxable amount, which is the net charge after all applicable discounts have been subtracted from the usage charge, and after the minimum charge floor rule has been enforced. This ensures tax is never calculated on a raw usage charge but always on the final adjusted billable amount."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00056",
+            "Rule_Type": "Definitional Rules",
+            "Acceptance_Criteria": {
+                "Given": "A billing calculation is in progress for an active customer and the taxable amount has already been determined (either as Usage Charge minus Total Discount, or as the Minimum Charge if the net charge fell below the minimum threshold)",
+                "When": "The system is ready to compute the final total amount due on the invoice",
+                "Then": "The system must use the previously computed Taxable Amount (WS-TAXABLE-AMOUNT) as the first component in the final invoice amount calculation, ensuring it reflects all prior discount and minimum charge adjustments"
+            },
+            "Rule_Name": "Retrieve Taxable Amount as Input to Final Invoice Calculation",
+            "Rule_Description": "The taxable amount, which has already been determined after applying all applicable discounts and enforcing the minimum charge rule, is used as the primary base component when calculating the final invoice amount."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00057",
+            "Rule_Type": "Definitional Rules",
+            "Acceptance_Criteria": {
+                "Given": "A billing calculation is in progress for an active customer and the tax amount has already been computed as Taxable Amount multiplied by the customer's individual tax rate (CUST-TAX-RATE) sourced from the Customer Master record",
+                "When": "The system is ready to compute the final total amount due on the invoice",
+                "Then": "The system must use the previously computed Tax Amount (WS-TAX) as the second additive component in the final invoice amount calculation, ensuring the customer-specific tax rate has been applied"
+            },
+            "Rule_Name": "Retrieve Calculated Tax Amount as Input to Final Invoice Calculation",
+            "Rule_Description": "The tax amount, which has been individually calculated for the customer using their specific tax rate applied to the taxable amount, is used as the second component when computing the final invoice total."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00058",
+            "Rule_Type": "Definitional Rules",
+            "Acceptance_Criteria": {
+                "Given": "A billing calculation is in progress for an active customer and the Customer Master record for that customer has been located and loaded, containing the field CUST-PREV-BALANCE representing any outstanding balance from prior billing periods",
+                "When": "The system is ready to compute the final total amount due on the invoice",
+                "Then": "The system must retrieve the Previous Outstanding Balance (CUST-PREV-BALANCE) directly from the Customer Master record and include it as the third additive component in the final invoice amount calculation"
+            },
+            "Rule_Name": "Retrieve Customer Previous Outstanding Balance from Customer Record",
+            "Rule_Description": "The customer's previous outstanding balance, as stored in the Customer Master record, is carried forward and included in the current invoice total to ensure any unpaid prior amounts are collected in the current billing cycle."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00059",
+            "Rule_Type": "Computation Rules",
+            "Acceptance_Criteria": {
+                "Given": "An active customer's billing calculation has been completed, producing: (1) a Taxable Amount (WS-TAXABLE-AMOUNT) after all discounts and minimum charge rules have been applied, (2) a Tax Amount (WS-TAX) computed as Taxable Amount multiplied by the customer's individual tax rate from the Customer Master record, and (3) a Previous Outstanding Balance (CUST-PREV-BALANCE) retrieved from the Customer Master record",
+                "When": "The system computes the final invoice amount",
+                "Then": "The system must calculate the Final Invoice Amount (WS-FINAL-AMOUNT) using the formula: Final Amount = Taxable Amount + Tax Amount + Previous Outstanding Balance, and this computed value must be stored as the total amount due to be included on the generated invoice"
+            },
+            "Rule_Name": "Compute Final Invoice Amount by Summing All Billing Components",
+            "Rule_Description": "The final total amount due on the customer's invoice is calculated by summing three components: the taxable amount (after discounts and minimum charge), the tax amount (based on the customer's tax rate), and the customer's previous outstanding balance. This produces the definitive amount the customer owes for the current billing period."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00060",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "The Generate Invoice process has been triggered for a customer's usage record",
+                "When": "The system begins constructing a new invoice number",
+                "Then": "The Invoice Number field must be reset to blank/empty spaces before any new value is assigned, ensuring no carry-over data from a previously processed invoice exists in the field"
+            },
+            "Rule_Name": "Clear Invoice Number Before Construction",
+            "Rule_Description": "Before generating a new invoice number, the invoice number field must be cleared of any previously held value to ensure no residual data contaminates the new invoice number."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00061",
+            "Rule_Type": "Definitional Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record has been read and is currently being processed",
+                "When": "The system constructs the invoice number",
+                "Then": "The Billing Month component of the invoice number must be taken from the Billing Month field (WS-BILLING-MONTH) of the current usage record, which was captured when the usage record was read"
+            },
+            "Rule_Name": "Invoice Number Source - Billing Month from Usage Record",
+            "Rule_Description": "The billing month used in the invoice number must be sourced directly from the current usage record being processed, ensuring the invoice number reflects the correct billing period."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00062",
+            "Rule_Type": "Definitional Rules",
+            "Acceptance_Criteria": {
+                "Given": "A matching customer record has been found in the Customer Master file for the current usage record",
+                "When": "The system constructs the invoice number",
+                "Then": "The Customer ID component of the invoice number must be taken from the Customer ID field (CUST-ID) of the matched Customer Master record"
+            },
+            "Rule_Name": "Invoice Number Source - Customer ID from Customer Record",
+            "Rule_Description": "The customer identifier used in the invoice number must be sourced from the matched Customer Master record, ensuring the invoice number is tied to the correct customer account."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00063",
+            "Rule_Type": "Computation Rules",
+            "Acceptance_Criteria": {
+                "Given": "The Billing Month has been taken from the current usage record and the Customer ID has been taken from the matched Customer Master record",
+                "When": "The system generates the invoice number",
+                "Then": "The Invoice Number must be formed by concatenating: Billing Month value + literal hyphen character '-' + Customer ID value, in that exact order, with no additional separators or spaces between components (e.g., '2024-01-CUST001')"
+            },
+            "Rule_Name": "Invoice Number Construction by Combining Billing Month and Customer ID",
+            "Rule_Description": "A unique invoice number is constructed by concatenating the billing month, a hyphen separator, and the customer ID. This ensures each invoice can be uniquely identified by its billing period and customer."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00064",
+            "Rule_Type": "Definitional Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record exists for a customer with a specific billing month, and a matching active customer record exists in the Customer Master",
+                "When": "The invoice number is fully constructed",
+                "Then": "The resulting Invoice Number must be a unique identifier in the format '[Billing Month]-[Customer ID]' (e.g., '2024-01-CUST001'), where the Billing Month comes from the usage record and the Customer ID comes from the Customer Master record, and this invoice number is then used to identify the invoice record written to the Invoice output file"
+            },
+            "Rule_Name": "Invoice Number Uniqueness Per Customer Per Billing Month",
+            "Rule_Description": "The resulting invoice number uniquely identifies a billing event for a specific customer in a specific billing month. The combination of billing month and customer ID guarantees uniqueness of each invoice within a billing cycle."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00065",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage charge amount has been calculated for the customer based on their consumed units and the applicable tiered rate",
+                "When": "The invoice output is being prepared for the current billing period",
+                "Then": "The usage charge value is formatted into a display-ready field (WS-DISPLAY-CHARGE) suitable for inclusion in the invoice record, preserving the monetary value accurately for customer-facing output"
+            },
+            "Rule_Name": "Format Usage Charge for Invoice Display",
+            "Rule_Description": "The calculated usage charge (units multiplied by applicable rate, before any discounts) must be converted into a display-ready format before being printed on the invoice record."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00066",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "A total discount amount has been determined for the customer, which may reflect a volume discount, a premium customer discount, or a combination of both, or zero if no discounts apply",
+                "When": "The invoice output is being prepared for the current billing period",
+                "Then": "The total discount value is formatted into a display-ready field (WS-DISPLAY-DISCOUNT) suitable for inclusion in the invoice record, showing the customer the total savings applied to their bill"
+            },
+            "Rule_Name": "Format Discount Amount for Invoice Display",
+            "Rule_Description": "The total discount amount applied to the customer's bill (which may include a volume discount, a premium customer discount, or both combined) must be converted into a display-ready format before being printed on the invoice record."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00067",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "A tax amount has been calculated by applying the customer's individual tax rate to the taxable amount (which is either the net charge after discounts or the minimum charge floor, whichever is greater)",
+                "When": "The invoice output is being prepared for the current billing period",
+                "Then": "The tax amount value is formatted into a display-ready field (WS-DISPLAY-TAX) suitable for inclusion in the invoice record, providing the customer with a transparent view of the tax component of their bill"
+            },
+            "Rule_Name": "Format Tax Amount for Invoice Display",
+            "Rule_Description": "The tax amount calculated on the customer's taxable amount using the customer-specific tax rate must be converted into a display-ready format before being printed on the invoice record."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00068",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "A previous balance amount exists on the customer's account as retrieved from the Customer Master record (CUST-PREV-BALANCE), which may be zero if the account is fully paid",
+                "When": "The invoice output is being prepared for the current billing period",
+                "Then": "The previous balance value is formatted into a display-ready field (WS-DISPLAY-BALANCE) suitable for inclusion in the invoice record, clearly showing the customer any outstanding amount carried forward from prior periods"
+            },
+            "Rule_Name": "Format Previous Balance for Invoice Display",
+            "Rule_Description": "The customer's outstanding previous balance carried forward from prior billing periods must be converted into a display-ready format before being printed on the invoice record."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00069",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "A final total amount due has been computed for the customer as the sum of the taxable amount (net charge after discounts or minimum charge), the tax amount, and the previous balance carried forward",
+                "When": "The invoice output is being prepared for the current billing period",
+                "Then": "The final total amount value is formatted into a display-ready field (WS-DISPLAY-TOTAL) suitable for inclusion in the invoice record, representing the complete amount the customer is required to pay for the current billing period including all charges, taxes, and prior balances"
+            },
+            "Rule_Name": "Format Total Amount Due for Invoice Display",
+            "Rule_Description": "The final total amount due, which is the sum of the taxable amount, tax, and any previous outstanding balance, must be converted into a display-ready format before being printed on the invoice record as the customer's total payment obligation."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00070",
+            "Rule_Type": "Computation Rules",
+            "Acceptance_Criteria": {
+                "Given": "A usage record has been processed for a customer with a valid Customer ID and a Billing Month value is available from the usage record",
+                "When": "The system prepares to assemble the invoice record",
+                "Then": "The Invoice Number must be formed by concatenating the Billing Month, followed by a hyphen '-', followed by the Customer ID (e.g., '202401-CUST001'), and this Invoice Number is used as the unique identifier for the invoice record"
+            },
+            "Rule_Name": "Invoice Number Generation from Billing Month and Customer ID",
+            "Rule_Description": "The invoice number must be uniquely constructed by concatenating the billing month and the customer ID separated by a hyphen before the invoice record is assembled."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00071",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "All billing calculations have been completed for an active customer, including Usage Charge, Discount Amount, Tax Amount, Previous Balance, and Final Amount Due, and the Invoice Number has been constructed",
+                "When": "The system assembles the invoice output record",
+                "Then": "The invoice record must be assembled as a pipe-delimited line containing exactly the following nine fields in this exact order: Invoice Number | Customer ID | Customer Name | Units Consumed | Usage Charge | Discount Amount | Tax Amount | Previous Balance | Total Amount Due, where all monetary values are formatted into their display format prior to assembly"
+            },
+            "Rule_Name": "Invoice Record Field Assembly with All Billing Components",
+            "Rule_Description": "Before writing to the invoice output file, all billing components must be formatted and assembled into a single complete invoice record in a defined pipe-delimited structure containing exactly nine fields."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00072",
+            "Rule_Type": "Action Rules",
+            "Acceptance_Criteria": {
+                "Given": "The complete pipe-delimited invoice output line has been assembled with all nine required fields including Invoice Number, Customer ID, Customer Name, Units Consumed, Usage Charge, Discount Amount, Tax Amount, Previous Balance, and Total Amount Due",
+                "When": "The system writes the invoice record",
+                "Then": "The fully assembled invoice record must be written to the Invoice Output File (INVOICE.dat), creating a permanent invoice entry for the customer's current billing period"
+            },
+            "Rule_Name": "Write Completed Invoice Record to Invoice Output File",
+            "Rule_Description": "Once the invoice record is fully assembled with all nine billing components, it must be written to the invoice output file to create a permanent billing record."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00073",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "An invoice record has been successfully written to the Invoice Output File for a customer",
+                "When": "The invoice write operation completes",
+                "Then": "The system must display a confirmation message in the format 'INVOICE GENERATED: [Invoice Number]', where [Invoice Number] is the specific invoice number of the record just written, confirming successful invoice creation"
+            },
+            "Rule_Name": "Invoice Generation Confirmation Display",
+            "Rule_Description": "After each invoice record is successfully written to the output file, a confirmation message must be displayed identifying which invoice was generated."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00074",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "All usage records from the Usage file have been read and processed (end of Usage file has been reached), and the billing cycle has completed generating invoices for all eligible active customers",
+                "When": "The billing process reaches the end of the usage record loop with no more records to process",
+                "Then": "The system must close the Customer file, the Usage file, and the Invoice output file \u2014 all three files must be closed in sequence before the billing process terminates, ensuring no data remains uncommitted or inaccessible"
+            },
+            "Rule_Name": "Close All Billing Input and Output Files Upon Process Completion",
+            "Rule_Description": "Once all usage records have been processed and invoices generated, the billing process must formally close all three data sources \u2014 the Customer file, the Usage file, and the Invoice output file \u2014 to ensure data integrity and proper finalization of the billing run."
+        },
+        {
+            "Rule_Id": "R-BILLING-cbl-00075",
+            "Rule_Type": "Process Rules",
+            "Acceptance_Criteria": {
+                "Given": "All usage records have been processed, all invoices have been generated for eligible active customers, and all billing files (Customer, Usage, and Invoice) have been successfully closed",
+                "When": "The billing process has completed all processing and file closure steps",
+                "Then": "The system must display the message 'BILL01 BILLING PROCESS COMPLETE' surrounded by separator lines (dashes), confirming the successful completion of the billing run, and then terminate the billing process"
+            },
+            "Rule_Name": "Display Billing Process Completion Confirmation Message",
+            "Rule_Description": "After all files are closed and the billing run is fully complete, the system must display a standardized completion message to confirm that the BILL01 billing process has finished successfully. This provides an auditable end-of-process indicator for operations staff."
+        }
+    ],
+    "description": "The BILLING program is a batch billing processing system that reads customer and usage data to calculate charges and generate invoices. It applies tiered usage rates, volume and premium discounts, tax calculations based on customer-specific tax rates, and incorporates previous balances to produce a final invoice amount written to an output invoice file. This is a standalone main/driver program with no called subprograms or CICS interactions.\n\n<br>\n\n- **Execution Environment**: Batch\n- **Database Access**: Sequential Files\n- **MQ Calls**: No\n- **Module Type**: Main/Driver module\n\n<br>\n\n### Key Functionalities:\n\n1: Read Usage Record - Read each customer usage record from the usage file, capturing customer ID, number of units consumed, and the billing month for processing\n\n2: Find Customer - Search the customer file to locate the customer record matching the current usage record's customer ID\n\n3: Validate Customer Status - Check whether the found customer has an ACTIVE status; skip billing and log an error if the customer is inactive or not found\n\n4: Determine Usage Rate - Assign a per-unit billing rate based on tiered usage levels: rate of 0.50 for up to 500 units, 0.45 for 501\u20131000 units, and 0.40 for more than 1000 units\n\n5: Calculate Usage Charge - Multiply the total units consumed by the applicable per-unit rate to compute the gross usage charge\n\n6: Apply Volume Discount - If the customer's usage exceeds the volume threshold of 1000 units, apply a 10% discount on the usage charge\n\n7: Apply Premium Customer Discount - If the customer type is PREMIUM, apply an additional 5% discount on the usage charge, added on top of any existing volume discount\n\n8: Apply Minimum Charge Rule - If the usage charge after discounts falls below the minimum charge of $25.00, set the taxable amount to the minimum charge of $25.00; otherwise use the discounted charge as the taxable amount\n\n9: Calculate Tax - Compute the tax amount by multiplying the taxable amount by the customer's individual tax rate\n\n10: Calculate Final Invoice Amount - Sum the taxable amount, the calculated tax, and the customer's previous outstanding balance to arrive at the total amount due\n\n11: Generate Invoice Number - Construct a unique invoice number by combining the billing month and the customer ID\n\n12: Format Invoice Output - Format all monetary values (usage charge, discount, tax, previous balance, total amount) into display-ready formats for the invoice record\n\n13: Write Invoice Record - Assemble and write the complete invoice record containing invoice number, customer ID, customer name, units consumed, usage charge, discount, tax, previous balance, and total amount due to the invoice output file\n\n14: Billing Process Completion - After all usage records are processed, close all files and display a billing process completion message\n\n"
+}

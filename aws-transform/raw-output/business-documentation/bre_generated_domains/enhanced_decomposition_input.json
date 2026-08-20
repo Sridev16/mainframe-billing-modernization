@@ -1,0 +1,12 @@
+{
+  "domains": [
+    {
+      "name": "Billing and Invoice Processing",
+      "description": "Manages the end-to-end monthly billing cycle, calculating customer charges and generating invoices based on usage, rates, discounts, and taxes.",
+      "files": [
+        "jcl/BILL01.jcl|BILL01.jcl|JCL",
+        "BILLING.cbl|BILLING.cbl|COB"
+      ]
+    }
+  ]
+}
