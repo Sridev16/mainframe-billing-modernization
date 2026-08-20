@@ -1,3 +1,10 @@
+*.exe
+
+# Eclipse
+.classpath
+.project
+.settings/
+
 # IDE
 .idea/
 .vscode/
