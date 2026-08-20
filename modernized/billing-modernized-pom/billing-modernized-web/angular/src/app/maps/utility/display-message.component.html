@@ -1,0 +1,102 @@
+<div [ngStyle]="mapDivStyle()">
+  <!-- Header -->
+  <div class='lgr_col'>
+    <div [ngClass]="'lgr_24 col_' + getClass(56, 31)">
+      <span class='default' class='blank' id='title'>Display Messages</span>
+    </div>
+  </div>
+
+  <div class='lgr_col'>
+    <div [ngClass]="'lgr_24 col_' + getClass(79, 54)">
+      <span class='default'>System:</span>
+    </div>
+    <div [ngClass]="'lgr_20 col_' + getClass(91, 66)">
+      <dynamic-field [id]='"systemName"' [size]=8 [(ngModel)]='systemName'></dynamic-field>
+    </div>
+  </div>
+
+  <!-- Queue Information -->
+  <div class='lgr_col'>
+    <div [ngClass]="'lgr_12 col_' + getClass(27, 01)">
+      <span class='default'>Queue . . . . . :</span>
+    </div>
+    <div [ngClass]="'lgr_20 col_' + getClass(49, 23)">
+      <dynamic-field [id]='"messageQueue"' [size]=10 [(ngModel)]='messageQueue'></dynamic-field>
+    </div>
+    <div [ngClass]="'lgr_12 col_' + getClass(69, 44)">
+      <span class='default'>Program . . . . :</span>
+    </div>
+    <div [ngClass]="'lgr_14 col_' + getClass(91, 66)">
+      <dynamic-field [id]='"program"' [size]=10 [(ngModel)]='program'></dynamic-field>
+    </div>
+  </div>
+
+  <div class='lgr_col'>
+    <div [ngClass]="'lgr_12 col_' + getClass(29, 03)">
+      <span class='default'>Library . . . :</span>
+    </div>
+    <div [ngClass]="'lgr_20 col_' + getClass(51, 25)">
+      <dynamic-field [id]='"library"' [size]=10 [(ngModel)]='library'></dynamic-field>
+    </div>
+    <div [ngClass]="'lgr_12 col_' + getClass(71, 46)">
+      <span class='default'>Library . . . :</span>
+    </div>
+    <div [ngClass]="'lgr_12 col_' + getClass(93, 68)">
+      <dynamic-field [id]='"programLib"' [size]=10 [(ngModel)]='programLib'></dynamic-field>
+    </div>
+  </div>
+
+  <!-- Message Properties -->
+  <div class='lgr_col'>
+    <div [ngClass]="'lgr_12 col_' + getClass(27, 01)">
+      <span class='default'>Severity  . . . :</span>
+    </div>
+    <div [ngClass]="'lgr_8 col_' + getClass(49, 23)">
+      <dynamic-field [id]='"severity"' [size]=2 [(ngModel)]='severity'></dynamic-field>
+    </div>
+    <div [ngClass]="'lgr_12 col_' + getClass(69, 44)">
+      <span class='default'>Delivery  . . . :</span>
+    </div>
+    <div [ngClass]="'lgr_08 col_' + getClass(91, 66)">
+      <dynamic-field [id]='"delivery"' [size]=6 [(ngModel)]='delivery'></dynamic-field>
+    </div>
+  </div>
+
+  <div class='lgr_col empty'></div>
+
+  <!-- Instructions -->
+  <div class='lgr_col'>
+      <div [ngClass]="'lgr_36 col_' + getClass(27, 01)">
+        <span class='blue' id='text3'>Type reply (if required), press Enter.</span>
+      </div>
+  </div>
+
+
+  <!-- Message -->
+  <div class='lgr_col'>
+    <div [ngClass]="'lgr_75 col_' + getClass(29, 03)">
+      <app-table #table [id]='"message"' [rows]='message' [nbDisplayedEntries]='getClass(15, 12)' [nbLinesByRow]='1'  [windowOffset]='termState.isExtended ? 132 : 80'>
+        <ng-template let-i>
+          <display-message-msg *ngIf="message.length > i" [(message)]='message[i]' [index]='i'></display-message-msg>
+        </ng-template>
+      </app-table>
+    </div>
+  </div>
+
+  <!-- Empty Lines -->
+<div class='lgr_col empty' *ngFor="let i of [].constructor(+getClass(16, 13))"></div>
+
+  <!-- Function Keys -->
+  <div class='lgr_col'>
+    <div [ngClass]="'lgr_36 col_' + getClass(26, 1)"><span class='blue' id='text3'>F3=Exit</span></div>
+    <div [ngClass]="'lgr_36 col_' + getClass(50, 25)"><span class='blue' id='text3'>F11=Remove a message</span></div>
+    <div [ngClass]="'lgr_36 col_' + getClass(90, 65)"><span class='blue' id='text3'>F12=Cancel</span></div>
+  </div>
+  <div class='lgr_col'>
+    <div [ngClass]="'lgr_36 col_' + getClass(26, 1)"><span class='blue' id='text3'>F13=Remove all</span>  </div>
+    <div [ngClass]="'lgr_36 col_' + getClass(50, 25)"><span class='blue' id='text3'>F16=Remove all except unanswered</span>  </div>
+    <div [ngClass]="'lgr_36 col_' + getClass(90, 65)"><span class='blue' id='text3'>F24=More keys</span>  </div>
+  </div>
+  <div class='lgr_col empty'></div>
+
+</div>

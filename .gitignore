@@ -1,0 +1,38 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Java
+target/
+*.class
+
+# Node
+node_modules/
+dist/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Archives
+*.zip
+*.7z
+*.tar
+*.gz
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.key
+
+# AWS credentials
+.aws/
